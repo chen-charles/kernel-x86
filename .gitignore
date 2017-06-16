@@ -1,0 +1,5 @@
+build/
+.vscode/
+*.iso
+ref/
+iso/kernel32
