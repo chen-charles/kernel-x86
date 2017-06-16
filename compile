@@ -1,0 +1,17 @@
+#!/bin/bash
+cd build
+cmake .. && make
+if [ $? == 0 ]; then
+    cd ..
+    cp -v ./build/bin/start ./iso/kernel32
+    rm -f system.iso
+    until [ $? == 0 ]; do
+        rm -f system.iso
+    done
+    grub-mkrescue -o system.iso iso/
+    if [ $? -ne 0 ]; then
+        read -n1 any_key
+    fi
+else
+    read -n1 any_key
+fi

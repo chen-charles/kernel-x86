@@ -1,0 +1,2 @@
+bash compile
+pause

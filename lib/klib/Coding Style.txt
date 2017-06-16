@@ -1,0 +1,7 @@
+always using #include <> in *.h *.hpp
+always using #include "" in *.c *.cc
+always using *.inc && *.asm for definition, never for declaration
+
+gcc -I ==> klib
+gcc -iquote for each component path
+
