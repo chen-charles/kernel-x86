@@ -2,7 +2,7 @@ file(GLOB start_SRC
 	"*.h"
 	"*.c"
 	"*.inc"
-	"*.asm"
+	"*.nasm"
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

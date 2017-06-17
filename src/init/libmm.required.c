@@ -24,12 +24,12 @@ void *mmap(void* addr, size_t len, page_property* usage)
         properties.required.inuse = true;
         usage = &properties;
     }
-    return MM_mmap(addr, len, usage, (MM_Data_Section_H*) (*(uintptr_t*)(LIBMM_DATSEC_PTR)));
+    return MM_mmap(addr, len, usage, GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR));
 }
 
 int munmap(void* addr, size_t len)
 {
-    return MM_munmap(addr, len, (MM_Data_Section_H*) (*(uintptr_t*)(LIBMM_DATSEC_PTR)));
+    return MM_munmap(addr, len, GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR));
 }
 
 uintreg_t libmm_init()

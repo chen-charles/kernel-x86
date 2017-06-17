@@ -22,6 +22,14 @@ _start:
 	jmp .realstart
 
 ;ensures the multiboot header is in the very front of the program
+;Boot State
+;EAX    MAGIC
+;EBX    pInfo
+;CS     Read/Execute
+;SS     Read/Write
+;Protected Mode Enabled
+;Paging Disabled
+;Interrupt Flag Cleared (if)
 align 8 ;required as alignment of 64-bits
 MULTIBOOT2_HEADER_LENGTH EQU .multiboot2_end - .multiboot2
 .multiboot2:
@@ -50,11 +58,9 @@ MULTIBOOT2_HEADER_LENGTH EQU .multiboot2_end - .multiboot2
 
 align 4
 .raw_boot:
-        cli
         hlt
         
 .realstart:
-        cli
         mov esp, StackTop   ;setup stack pointer
         cmp eax, MULTIBOOT2_BOOTLOADER_MAGIC     ;is multiboot failed
         jne .raw_boot

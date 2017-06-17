@@ -10,18 +10,17 @@
 
 
 
-void idt_init();
-byte idt_ptr[6];
+uintreg_t idt_init();
 
 int stub_intr(void* esp, uint32_t int_id)
 {
     return 0;
 }
 
-int c_idt_init()
+uintreg_t c_idt_init()
 {
     //if an interrupt is launched and no predetermined routines is there to handle,
-    //the C-handler will try to index the interrupt redirect table(PM_INT_REDIRECT_TABLE_PTR)
+    //the C-handler will try to index the interrupt redirect table(pIHTable)
     //if the function pointer is not NULLPTR, the function will be called
     //in __cdecl calling convention with param (void* esp, uint32_t int_id)
     //
@@ -29,18 +28,17 @@ int c_idt_init()
     //internal / critical interrupt routines are pre-determined
     //they will be redirected from the C-handler before indexing the table
     //just be aware of that
-    memset((void*)int_masks, 0, 256);
-    memset((void*)PM_INT_REDIRECT_TABLE_PTR, 0, sizeof(uintptr_t)*256);
-    idt_init();
-	*(((uintptr_t*)PM_INT_REDIRECT_TABLE_PTR)+INT_VEC_APIC_TIMER) = (uintptr_t)(&stub_intr);
-    return 0;
+
+    memset((void*)pIHTable, 0, sizeof(uintptr_t)*256);
+	*(((uintptr_t*)pIHTable)+INT_VEC_APIC_TIMER) = (uintptr_t)(&stub_intr);
+    return idt_init();;
 }
 
-void idt_init()
+uintreg_t idt_init()
 {
-	uint16_t *idtlen = (uint16_t*)&(idt_ptr[0]);
-	uint32_t *idtaddr = (uint32_t*)&(idt_ptr[2]);
-	*idtaddr = PM_IDT_PTR;
+	uint16_t *idtlen = (uint16_t*)SHARED_IDTR;
+	uint32_t *idtaddr = (uint32_t*)(SHARED_IDTR + 2);
+	*idtaddr = pIDTable;
 	*idtlen = sizeof(GATE)*256;
 	init_idt_desc((GATE*)(*idtaddr) + 0, &int_handler_0, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 1, &int_handler_1, 0, 0x10);
@@ -299,4 +297,5 @@ void idt_init()
 	init_idt_desc((GATE*)(*idtaddr) + 254, &int_handler_254, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 255, &int_handler_255, 0, 0x10);
 
+	return SHARED_IDTR;
 }

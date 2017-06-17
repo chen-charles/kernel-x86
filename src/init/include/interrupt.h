@@ -24,18 +24,14 @@ EXTERN_C
 
 int interrupt(void* esp, uint32_t int_id);
 
-void mask_interrupt(uint32_t int_id);
-void unmask_interrupt(uint32_t int_id);
-
 //Customizable Interrupt Handlers
-typedef int (*interrupt_handler)(void*, uint32_t);  //(void* esp, uint32_t int_id)
+typedef int (*interrupt_handler)(void*, uint8_t);  //(void* esp, uint32_t int_id)
 //return 1 for failure //return 0 to iretd
 //if nullptr is specified, a 1 will be returned
-void set_interrupt_handler(interrupt_handler handler, uint32_t int_id);
-interrupt_handler get_interrupt_handler(uint32_t int_id);
-extern byte int_masks[256];
+void set_interrupt_handler(interrupt_handler handler, uint8_t int_id);
+interrupt_handler get_interrupt_handler(uint8_t int_id);
 
-int c_idt_init();
+uintreg_t c_idt_init();
 
 // asm interrupt handlers
 void int_handler_0();

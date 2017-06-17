@@ -2,6 +2,7 @@
 #include    "include/memloc.h"
 #include    "include/bochsdbg.h"
 #include    <klib_ad/x86/gdt.h>
+#include    <klib_ad/x86/idt.h>
 #include    <klib_ad/x86/fpusse.h>
 #include    <klib_ad/x86/mm.paging.h>
 #include    <libmm/libmm.h>
@@ -16,11 +17,6 @@ void *operator new(size_t size) { return calloc(1, size); }
 void *operator new[](size_t size) { return calloc(1, size); }
 void operator delete(void *p) { free(p); }
 void operator delete[](void *p) { free(p); }
-
-extern "C" uint64_t GetSystemInternalTime()
-{
-    return (*((uint64_t*)SYSTEM_INTERNAL_TIME_PTR));
-}
 
 void libproc_setup();
 extern "C" int cpp_entry()
@@ -111,12 +107,12 @@ typedef struct
 ContextSwitchCtx;
 
 
-int ctxSwitch_timerTick_intr(void* esp, uint32_t int_id)
+int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
 {
     if ((int)GetSystemInternalTime()%10) 
         return 0;
 
-    Scheduler* scheduler = (Scheduler*)(*(uintptr_t*)LIBPROC_SCHEDULER_PTR);
+    Scheduler* scheduler = GetTypedPtrAt(Scheduler, LIBPROC_SCHEDULER_PTR);
     page_property prop;
 
     if (scheduler->tick())  // hardware ctx switch required, slow, 1ms tick will trash the cpu, exception-free code
@@ -256,7 +252,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint32_t int_id)
 
             __asm__ volatile ( "pushad" );
             // shift to tss stack
-            register uint32_t* target_stack __asm__("eax") = (uint32_t*)((TSS*)PM_TSS_PTR)->esp0;
+            register uint32_t* target_stack __asm__("eax") = (uint32_t*)((TSS*)pTSSegment)->esp0;
 
             // x-rings underflow
             *(target_stack+3) = nextCtx->esp;
@@ -274,7 +270,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint32_t int_id)
             __asm__ volatile ( "sub ebp, eax" );
             __asm__ volatile ( "pop eax" );
 
-            esp = (void*)(uint32_t*)((TSS*)PM_TSS_PTR)->esp0;
+            esp = (void*)(uint32_t*)((TSS*)pTSSegment)->esp0;
         }
 
         // case 3
@@ -347,7 +343,7 @@ void kinitProcess()
 
 void set_tss_esp(uint32_t esp)
 {
-    TSS* tss = (TSS*)PM_TSS_PTR;
+    TSS* tss = (TSS*)pTSSegment;
     tss->ss0 = 0x18;
     tss->esp0 = esp;
     __asm__ volatile (
@@ -357,7 +353,7 @@ void set_tss_esp(uint32_t esp)
 
 Process* CreateProcessXRings(uintptr_t eip, Privilege priv, uint64_t priority)
 {
-    Scheduler* scheduler = (Scheduler*)(*(uintptr_t*)LIBPROC_SCHEDULER_PTR);
+    Scheduler* scheduler = GetTypedPtrAt(Scheduler, LIBPROC_SCHEDULER_PTR);
     ProcessContextInfo contextInfo;
     page_property prop;
 
@@ -416,12 +412,10 @@ void libproc_setup()
 
     /* note: process stores their physical page usage (as multiple process can be running on the same vaddr) */
 
-    // reset internal timer
-    (*((uint64_t*)SYSTEM_INTERNAL_TIME_PTR)) = 0;
-
     // libproc
     Scheduler* scheduler = new Scheduler();
     *((uintptr_t*)LIBPROC_SCHEDULER_PTR) = (uintptr_t)scheduler;
+
     ProcessContextInfo contextInfo;
     page_property prop;
 
@@ -430,7 +424,7 @@ void libproc_setup()
 
     // TSS xrings setup
     // this is the new kernel stack when kernel-curproc starts running
-    TSS* tss = (TSS*)PM_TSS_PTR;
+    TSS* tss = (TSS*)pTSSegment;
     memset(tss, 0, sizeof(TSS));
     uintptr_t intr_stkpg = (uintptr_t)mmap(0, 0x400000, &prop);
     set_tss_esp(intr_stkpg + 0x3fffcc); 
@@ -443,8 +437,8 @@ void libproc_setup()
 
     // signal scheduler tick is now available
     // set_interrupt_handler(&timerTick_intr, INT_VEC_APIC_TIMER);
-	*(((uintptr_t*)PM_INT_REDIRECT_TABLE_PTR)+INT_VEC_APIC_TIMER) = (uintptr_t)(&ctxSwitch_timerTick_intr);
 
+    set_interrupt_handler(ctxSwitch_timerTick_intr, INT_VEC_APIC_TIMER);
     // wait for interrupt, end of init.
     sti();
     while (1);

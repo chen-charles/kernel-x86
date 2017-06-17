@@ -6,13 +6,13 @@ uint32_t g_bootinfo_p;
 
 uintreg_t multiboot_startup(uint32_t header);
 
-//uintreg_t multiboot_startup(byte* header)
-//Returns 0 if the multiboot startup was successful
-//
-//input: EBX
-//
-//parses multiboot startup information into global constants
-//This Function is called right after C-code envir is prepared
+// uintreg_t multiboot_startup(byte* header)
+// Returns 0 if the multiboot startup was successful
+// 
+// input: EBX
+// 
+// parses multiboot startup information into global constants
+// This Function is called right after C-code envir is prepared
 uintreg_t multiboot_startup(uint32_t header)
 {
     uint32_t totalsize = *(uint32_t*)header;
@@ -39,10 +39,10 @@ uintreg_t multiboot_startup(uint32_t header)
             case MULTIBOOT_TAG_TYPE_BOOTDEV:
                 break;
             case MULTIBOOT_TAG_TYPE_MMAP:
-                //memory manager
+                // memory manager
                 break;
             case MULTIBOOT_TAG_TYPE_VBE:
-                //vbe 2.0+, not comp w/ vbe 3.0
+                // vbe 2.0+, not comp w/ vbe 3.0
                 break;
             case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:
                 for (uint32_t* p = (uint32_t*)(uint32_t)(((struct multiboot_tag_framebuffer*)tagHeader)->common.framebuffer_addr);
@@ -54,11 +54,11 @@ uintreg_t multiboot_startup(uint32_t header)
                         *
                         4;
                     p++)
-                    *p = 0x000000FF;    //X R G B
+                    *p = 0x000000FF;    // X R G B
                 break;
             case MULTIBOOT_TAG_TYPE_ELF_SECTIONS:
                 break;
-            case MULTIBOOT_TAG_TYPE_APM:    //APM Table --> successor: ACPI
+            case MULTIBOOT_TAG_TYPE_APM:    // APM Table --> successor: ACPI
                 break;
             case MULTIBOOT_TAG_TYPE_EFI32:
                 break;
@@ -72,11 +72,11 @@ uintreg_t multiboot_startup(uint32_t header)
                 break;
             case MULTIBOOT_TAG_TYPE_NETWORK:
                 break;
-            //default is reserved
+            // default is reserved
         }
         
         
-        //padding @ 8 bytes
+        // padding @ 8 bytes
         tagHeaderLoc += tagHeader->size%8==0 ? tagHeader->size : tagHeader->size + 8 - tagHeader->size%8;
     }
 

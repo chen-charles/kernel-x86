@@ -6,17 +6,16 @@
 #include    "include/memloc.h"
 #include    "include/kinit_alloc.h"
 
-//ptr align 16
+// ptr align 16
 uintreg_t gdt_init()
 {
-    uintptr_t pPTR = (uintptr_t)kinit_aligned_alloc(6, 16);
-	uint16_t *gdtlen = (uint16_t*)pPTR;
-	uint32_t *gdtaddr =  (uint32_t*)(pPTR+2);
+	uint16_t *gdtlen = (uint16_t*)SHARED_GDTR;
+	uint32_t *gdtaddr =  (uint32_t*)(SHARED_GDTR+2);
     
     *gdtlen = sizeof(DESCRIPTOR)*16;
-	*gdtaddr = PM_GDT_PTR;
+	*gdtaddr = pGDTable;
 
-	int p=0;
+	int p = 0;
 
 	// Entry 0 -> empty
 	init_pm_desc((DESCRIPTOR*)*gdtaddr + p++, 0, 0, 0);
@@ -53,7 +52,7 @@ uintreg_t gdt_init()
 
 	// Entry 10 -> TSS
     // init_pm_desc((DESCRIPTOR*)*gdtaddr + p++, 0, 0, 0);
-	init_pm_desc((DESCRIPTOR*)*gdtaddr + p++, PM_TSS_PTR, PM_TSS_PTR + sizeof(TSS)-1, DA_386TSS);
+	init_pm_desc((DESCRIPTOR*)*gdtaddr + p++, pTSSegment, pTSSegment + sizeof(TSS) - 1, DA_386TSS);
 
 	// Entry 11 ~ 15 -> empty
 	init_pm_desc((DESCRIPTOR*)*gdtaddr + p++, 0, 0, 0);
@@ -61,5 +60,5 @@ uintreg_t gdt_init()
 	init_pm_desc((DESCRIPTOR*)*gdtaddr + p++, 0, 0, 0);
 	init_pm_desc((DESCRIPTOR*)*gdtaddr + p++, 0, 0, 0);
 
-	return pPTR;
+	return SHARED_GDTR;
 }

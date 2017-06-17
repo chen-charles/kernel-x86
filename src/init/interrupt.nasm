@@ -256,9 +256,8 @@ global int_handler_252
 global int_handler_253
 global int_handler_254
 global int_handler_255
+
 extern interrupt
-
-
 
 
 int_handler_0:

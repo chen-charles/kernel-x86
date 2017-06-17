@@ -3,6 +3,6 @@
 
 extern "C" uint64_t SYSTEM_INTERNAL_TIME()
 {
-    return *((uint64_t*)SYSTEM_INTERNAL_TIME_PTR);
+    return GetSystemInternalTime();
 }
 

@@ -8,8 +8,9 @@ extern  multiboot_startup
 extern  gdt_init
 extern  mk_selector
 
+extern  memset
+
 extern  c_idt_init
-extern  idt_ptr
 
 extern  lapic_init
 extern  ioapic_init
@@ -23,9 +24,16 @@ extern  cpp_entry
 global  init
 
 init:
-        ;machine-state is ready to be in C mode now
+        ; machine-state is ready to be in C mode now
         
-        
+        ; reset shared buffer
+        ; see memloc.h
+        push    0xB00
+        push    0
+        push    0x500
+        call    memset
+        add     esp, 12
+
         ;parse multiboot here
         push    ebx
         call    multiboot_startup
@@ -40,13 +48,15 @@ init:
         
         lgdt    [eax]
 
-	;disable 8259A
+	; disable 8259A
 	mov al, 0xff
 	out 0xa1, al
 	out 0x21, al
+
         call    c_idt_init
-        lidt	[idt_ptr]
-        
+        jz hang
+
+        lidt	[eax]
 
         
         push    0

@@ -17,7 +17,7 @@ uintreg_t libmalloc_init()
 
 void* malloc(size_t size)
 {
-    return MM_malloc(size, (Malloc_Ctx*)(*(uintptr_t*)(LIBMALLOC_CTX_PTR)));
+    return MM_malloc(size, GetTypedPtrAt(Malloc_Ctx, LIBMALLOC_CTX_PTR));
 }
 
 void free(void* ptr)

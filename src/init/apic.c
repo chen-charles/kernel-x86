@@ -1,9 +1,10 @@
-#include <klib_ad/x86/lapic.h>
-#include <klib_ad/x86/ioapic.h>
-#include "include/interrupt.h"
-#include <klib_ad/x86/instruction.h>
+#include	<klib_ad/x86/lapic.h>
+#include	<klib_ad/x86/ioapic.h>
+#include	"include/interrupt.h"
+#include	<klib_ad/x86/instruction.h>
 
 #include    "include/memloc.h"
+#include	"include/bochsdbg.h"
 
 void mapLAPIC(uintptr_t apic_base, uint32_t ticks_per_second);
 /* force enable lapic if not enabled, enable lapic interrupts */
@@ -17,12 +18,12 @@ int lapic_init()
     //MUST AFTER IDT SETUP
 
     for (int i=0; i<16; i++)
-        mask_interrupt(i);
+        MaskInterrupt(i);
     sti();
     for (int i=0; i<100000; i++);
     cli();
     for (int i=0; i<16; i++)
-        unmask_interrupt(i);
+        UnMaskInterrupt(i);
     
     enableLAPIC();
 
@@ -30,7 +31,6 @@ int lapic_init()
     //base_addr, # of ticks per second
     //system timer percision
     mapLAPIC((0xfffff000&cpuGetLAPICBase()), APIC_TIMER_FREQUENCY);
-	*((uint64_t*)SYSTEM_INTERNAL_TIME_PTR) = 0;
     
     return cpuGetLAPICBase();
 }

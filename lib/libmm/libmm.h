@@ -114,7 +114,7 @@ optional lookup requisites
 VIRTUAL_ADDRESS lookup_phys_to_virt(PHYSICAL_ADDRESS phys);
 PHYSICAL_ADDRESS lookup_virt_to_phys(VIRTUAL_ADDRESS virt);
 #else
-#warning "USING_LOOKUP is not defined, munmap is working in low efficiency mode"
+#warning "USING_LOOKUP is not defined, munmap is working in SLOW mode"
 #endif
 
 /* END REQUIRED INTERFACE */
@@ -190,7 +190,7 @@ MM_force_unmap will do nothing and fail if the parameters are not matched up wit
 uintreg_t MM_force_map(PHYSICAL_ADDRESS phys, VIRTUAL_ADDRESS virt);
 uintreg_t MM_force_unmap(PHYSICAL_ADDRESS phys, VIRTUAL_ADDRESS virt);
 #else
-#warning "USING_LIB_PROC is not defined, force map & force_unmap will not be available"
+#warning "USING_LIB_PROC is not defined, MM_force_map && MM_force_unmap will not be available"
 #endif
 
 /* END PUBLIC INTERFACE*/

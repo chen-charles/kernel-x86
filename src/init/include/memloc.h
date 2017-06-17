@@ -2,8 +2,16 @@
 #ifndef INIT_MEMLOC
 #define INIT_MEMLOC
 
+#include    <klib_sl/c/klib_sl.h>
+
+EXTERN_C
+
+#define GetValAt(typ, mloc) (*((typ*)mloc))
+#define GetPtrValAt(mloc) GetValAt(uintptr_t, mloc)
+#define GetTypedPtrAt(typ, mloc) (typ*)GetPtrValAt(mloc)
 
 #define PAGESIZE	0x400000
+
 /*
 http://wiki.osdev.org/Memory_Map_(x86)
 
@@ -32,23 +40,59 @@ High Memory
  ????????????????	 ????????????????	 ????????????????	Possible memory mapped hardware	Potentially usable for memory mapped PCI devices in modern hardware (but typically not, due to backward compatibility)
 */
 
+/*
+Memory Layout
 
-#define PM_GDT_PTR	0x00000500	//160 entries max
-#define PM_IDT_PTR	0x00001000	//256 entries max	//ends at 0x0000c100
-#define PM_TSS_PTR	0x0000c100	//104 bytes	//ends at 0x0000c168
-							    //align to 0x0000c200
+PINNED
+0x00000000	0x00001000	RealModeIVT BiosDataArea GDTR(0x6) IDTR(0x6) 
+	BIOS	0x0000	0x0500	Required to Preserve
+	GDTD	0x0500	0x05E0
+	GDTR	0x05E0	0x05F0
+	IDTR	0x05F0	0x0600
+	TSSD	0x0600	0x0668	(only exists on INTEL86; AMD64 does not support hardware context switch)
+	INTM	0x0680	0x06A0	Interrupt Masks (256 bits)
+	CUST	0x06A0	0x0700	Custom Data
+	PtrS	0x0700	0x1000	PtrSpace (allocate only with size 32bit/64bit, 4bytes/8bytes)	Capacity=576/1152
 
-#define LIBMM_DATSEC_PTR	0x0000c200	//uintptr_t
-#define PREFERRED_MMAP_CTR_PTR	0x0000c204	//uintreg_t
-#define LIBMALLOC_CTX_PTR	0x0000c208	//uintptr_t
-// c20c
-#define	SYSTEM_INTERNAL_TIME_PTR	0x0000c210	//uint64_t
+0x00001000	0x00002000	IDTDesc256x INTEL86=0x8/entry(0x800) AMD64=0x10/entry(0x1000)
+0x00002000	0x00003000	Custom Interrupt Handler Table
 
-#define LIBPROC_SCHEDULER_PTR	0x0000c218
 
-#define PM_INT_REDIRECT_TABLE_PTR 0x0000e000    //256 entries(uint32_t) ends at 0x0000e400
+*/
+
+// Global Shared Data Section	0x0000	0x1000
+// Requires Initialization: memset((void*)0x500, 0, 0x1000-0x500);
+#define SHARED_GDTD	0x00000500	// 28 max. (normally 16 is sufficient)
+#define SHARED_GDTR	0x000005E0
+#define SHARED_IDTR 0x000005F0
+#define SHARED_TSSD	0x00000600	// sizeof(TSS) == 0x68
+#define SHARED_INTM	0x00000680	// 256-bit interrupt masks -> 0x20
+	#define InterruptMasked(id) TESTBIT(*(uint8_t*)(SHARED_INTM + id/8), id%8)
+	#define MaskInterrupt(id) setbit((uint8_t*)(SHARED_INTM + id/8), id%8)
+	#define UnMaskInterrupt(id) clearbit((uint8_t*)(SHARED_INTM + id/8), id%8)
+#define SHARED_DATA	0x000006A0
+	#define SHARED_TIME	(SHARED_DATA)	// uint64_t
+	#define GetSystemInternalTime()	GetValAt(uint64_t, SHARED_TIME)
+	#define TickSystemInternalTime()	(GetValAt(uint64_t, SHARED_TIME)++)
+
+	// #define SHARED_PNXT	(SHARED_DATA + 8)	// next pointer in shared pointers
+	// #define offsetSharedPtr()	GetValAt(uint16_t, SHARED_PNXT)
+	// #define nextSharedPtr()	((SHARED_PTRS + sizeof(uintptr_t)*offsetSharedPtr() >= 0x1000) ? (__asm__ volatile ("int 3")) : (SHARED_PTRS + sizeof(uintptr_t)*(GetValAt(uint16_t, SHARED_PNXT)++)))
+#define SHARED_PTRS	0x00000700
+	#define LIBMM_DATSEC_PTR	(SHARED_PTRS)
+	#define PREFERRED_MMAP_CTR_PTR	(SHARED_PTRS+4)
+	#define LIBMALLOC_CTX_PTR	(SHARED_PTRS+8)
+	#define LIBPROC_SCHEDULER_PTR	(SHARED_PTRS+12)
+
+// Global Tables
+#define pGDTable	0x00000500
+#define pTSSegment	0x00000600
+#define pIDTable	0x00001000
+#define pIHTable	0x00002000
 
 #define PM_PAGING_4MB_VIRTPHYS_DATA	0x00010000	//len=0x4000, ends at 0x14000
 #define PM_PAGING_4MB_PHYSVIRT_DATA 0x00020000	//len=0x4000, ends at 0x18000
+
+EXTERN_C_END
 
 #endif
