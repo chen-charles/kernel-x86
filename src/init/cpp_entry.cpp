@@ -1,4 +1,5 @@
 #include    "include/cpp_entry.hpp"
+#include    "include/memloc.h"
 #include    "include/bochsdbg.h"
 #include    <klib_ad/x86/gdt.h>
 #include    <klib_ad/x86/fpusse.h>
@@ -15,6 +16,11 @@ void *operator new(size_t size) { return calloc(1, size); }
 void *operator new[](size_t size) { return calloc(1, size); }
 void operator delete(void *p) { free(p); }
 void operator delete[](void *p) { free(p); }
+
+extern "C" uint64_t GetSystemInternalTime()
+{
+    return (*((uint64_t*)SYSTEM_INTERNAL_TIME_PTR));
+}
 
 void libproc_setup();
 extern "C" int cpp_entry()
@@ -104,13 +110,11 @@ typedef struct
 }
 ContextSwitchCtx;
 
-int schedulerTickTiming = 0;
+
 int ctxSwitch_timerTick_intr(void* esp, uint32_t int_id)
 {
-    if (schedulerTickTiming-- != 0) 
+    if ((int)GetSystemInternalTime()%10) 
         return 0;
-    else
-        schedulerTickTiming = 10;
 
     Scheduler* scheduler = (Scheduler*)(*(uintptr_t*)LIBPROC_SCHEDULER_PTR);
     page_property prop;
@@ -411,6 +415,9 @@ void libproc_setup()
     /* you MUST restore this paging reference as the scheduler object is in that area */
 
     /* note: process stores their physical page usage (as multiple process can be running on the same vaddr) */
+
+    // reset internal timer
+    (*((uint64_t*)SYSTEM_INTERNAL_TIME_PTR)) = 0;
 
     // libproc
     Scheduler* scheduler = new Scheduler();
