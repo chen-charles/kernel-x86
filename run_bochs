@@ -1,0 +1,2 @@
+#!/bin/bash
+/mnt/c/Windows/System32/cmd.exe /k run_bochs.bat
