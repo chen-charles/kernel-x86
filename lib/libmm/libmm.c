@@ -20,10 +20,23 @@ MM Data Section Memory Usage Layout
 
 SECTION BEGIN 
 
+size=szMem/szPage*sizeof(uintptr_t) + sizeof(MM_Data_Section_H)
 ======  0
 MM_Data_Section_H 
 ======  
-Physical Memory Availibility Table @ 1
+phys<->virt Lookup Table @ 32/64 bit
+lets' say you have 64 GB memory and each page has a page size 0x1000
+this requires 80 MB (64bits/page) global memory for physical<->lookup
+this does not seem too bad considering this a global lookup for munmap efficiency
+the memory space should always contain a continuous block that is large enough (% in szMem)
+63/31:12    0x1000 aligned mapped address
+11:-        reserved
+5           (B) Busy
+4           (S) Supervisor
+3           (X) Execute
+2           (W) Write
+1           (R) Read
+0           (P) Present
 ======  
 TODO: Recursively build @ deg inc sizeof(uintreg_t)*8
 
@@ -34,15 +47,38 @@ bool isPhyPGAvl(uintptr_t pPhysAddr, MM_Data_Section_H* pMMDatSec);
 #define isPhysicalPageAvailiable(pPhysAddr, pMMDatSec) isPhyPGAvl(pPhysAddr, (MM_Data_Section_H*)pMMDatSec)
 bool flipPhyPGAvl(uintptr_t pPhysAddr, MM_Data_Section_H* pMMDatSec);
 
+void encode(uintptr_t* pEntry, page_property* prop)
+{
+    if (prop->required.present) setbit(pEntry, 0);
+    else clearbit(pEntry, 0);
+    if (prop->required.read) setbit(pEntry, 1);
+    else clearbit(pEntry, 1);
+    if (prop->required.write) setbit(pEntry, 2);
+    else clearbit(pEntry, 2);
+    if (prop->required.execute) setbit(pEntry, 3);
+    else clearbit(pEntry, 3);
+    if (prop->required.privileged) setbit(pEntry, 4);
+    else clearbit(pEntry, 4);
+    if (prop->required.busy) setbit(pEntry, 5);
+    else clearbit(pEntry, 5);
+}
+
+void sync(PHYSICAL_ADDRESS phys, VIRTUAL_ADDRESS virt, page_property* prop, MM_Data_Section_H* pMMDatSec)
+{
+    uintreg_t* pPMA = (uintreg_t*)(pMMDatSec->pPMemAvl);
+    uintreg_t pgIndx = phys/(pMMDatSec->szPage);
+    *(pPMA+pgIndx) = virt - virt%(pMMDatSec->szPage);
+    encode(pPMA+pgIndx, prop);
+}
 
 #ifndef _libmm_test_
 uintptr_t MM_init(size_t nTotalPages, size_t szPage, size_t nInusePages, uintptr_t* pInusePages)
-#define MM_REQUIRED_DATA_SECTION_SIZE   0x400000    /* 4m */
 #else
 uintptr_t MM_init(size_t nTotalPages, size_t szPage, size_t nInusePages, uintptr_t* pInusePages, uintptr_t mbase)
-#define MM_REQUIRED_DATA_SECTION_SIZE   0x4000    /* 16k */
 #endif
 {
+    int szMem = nTotalPages * szPage;
+    int MM_REQUIRED_DATA_SECTION_SIZE = szMem/szPage*sizeof(uintptr_t) + sizeof(MM_Data_Section_H);
     int totalPages = nTotalPages;
 
     // Required # of pages to be mapped
@@ -70,7 +106,7 @@ uintptr_t MM_init(size_t nTotalPages, size_t szPage, size_t nInusePages, uintptr
         }
         
         read_page(szPage * i, &pg_prop);
-        if (!pg_prop.required.inuse)
+        if (!pg_prop.required.busy)
         {
             if (curPages++ == 0) searchI = i;
             if (curPages == nPages) break;
@@ -87,9 +123,9 @@ uintptr_t MM_init(size_t nTotalPages, size_t szPage, size_t nInusePages, uintptr
     pg_prop.required.present = true;
     pg_prop.required.read = true;
     pg_prop.required.write = true;
-    pg_prop.required.run = false;
-    pg_prop.required.priviliged = true;
-    pg_prop.required.inuse = true;
+    pg_prop.required.execute = false;
+    pg_prop.required.privileged = true;
+    pg_prop.required.busy = true;
 
     for(int i=searchI; i<searchI+curPages; i++)
     {
@@ -101,11 +137,11 @@ uintptr_t MM_init(size_t nTotalPages, size_t szPage, size_t nInusePages, uintptr
     /* buffer space allocated, ready for initialization */
 
 #ifndef _libmm_test_
-    uintptr_t pbuf = searchI*szPage;
+    uintptr_t pbuf = searchI * szPage;
 #else
-    uintptr_t pbuf = mbase + searchI*szPage;
+    uintptr_t pbuf = mbase + searchI * szPage;
 #endif
-
+    
     MM_Data_Section_H* dath = (MM_Data_Section_H*)(pbuf);
     pbuf += sizeof(MM_Data_Section_H);
 
@@ -114,13 +150,12 @@ uintptr_t MM_init(size_t nTotalPages, size_t szPage, size_t nInusePages, uintptr
     dath->szDataSec = MM_REQUIRED_DATA_SECTION_SIZE;
     dath->nTotalPages = nTotalPages;
     dath->szPage = szPage;
-
     dath->nPages = nTotalPages;
 
-    // physical memory availibility
+    // physical memory table
     dath->pPMemAvl = pbuf;
-    memset((void*)pbuf, 0, (1 + (dath->nPages - 1) / (8*sizeof(uintreg_t))) * sizeof(uintreg_t));
-    pbuf += (1 + (dath->nPages - 1) / (8*sizeof(uintreg_t))) * sizeof(uintreg_t);
+    memset((void*)pbuf, 0, dath->nPages * sizeof(uintptr_t));
+    pbuf += dath->nPages * sizeof(uintptr_t);
     // accessor isPhyPGAvl
     // flip-er  flipPhyPGAvl
 
@@ -130,6 +165,13 @@ uintptr_t MM_init(size_t nTotalPages, size_t szPage, size_t nInusePages, uintptr
     for(int i=0; i<nInusePages; i++)
         flipPhyPGAvl(((*(pInusePages+i)) & (uintptr_t)(-0x10)), dath);
     
+    // sync p<->v
+    for(int i=0; i<nTotalPages; i++)
+    {
+        VIRTUAL_ADDRESS vaddr = read_page(i*(dath->szPage), &pg_prop);
+        sync(i*(dath->szPage), vaddr, &pg_prop, dath);
+    }
+
     // TODO: add more layers to this structure
     return (uintptr_t)dath;
 }
@@ -138,9 +180,8 @@ bool isPhyPGAvl(uintptr_t pPhysAddr, MM_Data_Section_H* pMMDatSec)
 {
     uintreg_t* pPMA = (uintreg_t*)(pMMDatSec->pPMemAvl);
     uintreg_t pgIndx = pPhysAddr/(pMMDatSec->szPage);
-    uintreg_t pgtbIndx = pgIndx/(8*sizeof(uintreg_t));
 
-    return TESTBIT(*(pPMA+pgtbIndx), pgIndx%(8*sizeof(uintreg_t)));
+    return TESTBIT(*(pPMA+pgIndx), 0);
 }
 #define isPhysicalPageAvailiable(pPhysAddr, pMMDatSec) isPhyPGAvl(pPhysAddr, (MM_Data_Section_H*)pMMDatSec)
 
@@ -148,28 +189,20 @@ bool flipPhyPGAvl(uintptr_t pPhysAddr, MM_Data_Section_H* pMMDatSec)
 {
     uintreg_t* pPMA = (uintreg_t*)(pMMDatSec->pPMemAvl);
     uintreg_t pgIndx = pPhysAddr/(pMMDatSec->szPage);
-    uintreg_t pgtbIndx = pgIndx/(8*sizeof(uintreg_t));
 
-    flipbit(pPMA+pgtbIndx, pgIndx%(8*sizeof(uintreg_t)));
-    return TESTBIT(*(pPMA+pgtbIndx), pgIndx%(8*sizeof(uintreg_t)));
+    flipbit(pPMA+pgIndx, 0);
+    return TESTBIT(*(pPMA+pgIndx), 0);
 }
 
 PHYSICAL_ADDRESS nextFreePhysicalPage(MM_Data_Section_H* pMMDatSec)
 {
     uintreg_t* pPMA = (uintreg_t*)(pMMDatSec->pPMemAvl);
     
-    for(int i=0; i<(pMMDatSec->nPages) / (8*sizeof(uintreg_t)); i++)
-        // reserve the last a few leftover pages
+    for(int i=0; i<pMMDatSec->nPages; i++)
     {
-        if (*(pPMA+i) != (uintreg_t)(-1))
+        if (!TESTBIT(*(pPMA+i), 5)) // inuse-bit
         {
-            for(int j=0; j<8*sizeof(uintreg_t); j++)
-            {
-                if (!TESTBIT(*(pPMA+i), j))
-                {
-                    return (pMMDatSec->szPage) * ((i * sizeof(uintreg_t) * 8) + j);
-                }
-            }
+            return (pMMDatSec->szPage) * i;
         }
     }
 
@@ -194,6 +227,7 @@ void *MM_mmap(void* addr, size_t len, page_property* usage, MM_Data_Section_H* p
         flipPhyPGAvl(nextPG, pMMDatSec);
         // map it
         write_page(nextPG, i*(pMMDatSec->szPage), usage);
+        sync(nextPG, i*(pMMDatSec->szPage), usage, pMMDatSec);
         flush_page(nextPG);
     }
 
@@ -207,38 +241,40 @@ int MM_munmap(void* addr, size_t len, MM_Data_Section_H* pMMDatSec)
     VIRTUAL_ADDRESS virt_begin = ((uintptr_t)addr) - ((uintptr_t)addr)%(pMMDatSec->szPage);
     VIRTUAL_ADDRESS virt_end = ((uintptr_t)addr + len + pMMDatSec->szPage - 1)/(pMMDatSec->szPage)*(pMMDatSec->szPage); // take this end
 
-
-#ifdef USING_LOOKUP
     page_property property;
-    property.required.inuse = false;
+    property.required.busy = false;
     for(VIRTUAL_ADDRESS i=virt_begin; i<=virt_end; i+=(pMMDatSec->szPage))
     {
         PHYSICAL_ADDRESS phys;
-        phys = lookup_virt_to_phys(i);
+        phys = lookup_virt_to_phys(i, pMMDatSec);
         flipPhyPGAvl(phys, pMMDatSec);
         write_page(phys, phys, &property);
+        sync(phys, phys, &property, pMMDatSec);
         flush_page(phys);
     }
-#else
-    // it should be fairly straight forward to implement a O(1) algorithm for this
-    for(uintptr_t paddr=0; paddr<pMMDatSec->szPage * pMMDatSec->nPages; paddr+=pMMDatSec->szPage)
-    {
-        page_property property;
-        VIRTUAL_ADDRESS cur = read_page(paddr, &property);
-        if (!cur) continue;
-        // for thread safety and multiple-mmap-one-munmap, allow mmap in random order
-        for(VIRTUAL_ADDRESS i=virt_begin; i<=virt_end; i+=(pMMDatSec->szPage))
-        {
-            if (cur == i)
-            {
-                property.required.inuse = false;
-                flipPhyPGAvl(paddr, pMMDatSec);
-                write_page(paddr, paddr, &property);
-                flush_page(paddr);
-            }
-        }
-    }
-#endif
 
     return 0;
+}
+
+VIRTUAL_ADDRESS lookup_phys_to_virt(PHYSICAL_ADDRESS phys, MM_Data_Section_H* pMMDatSec)
+{
+    page_property prop;
+#ifdef NATIVE_PHYS_TO_VIRT
+    return read_page(phys, &prop);
+#else
+    uintreg_t* pPMA = (uintreg_t*)(pMMDatSec->pPMemAvl);
+    uintreg_t pgIndx = phys/(pMMDatSec->szPage);
+
+    return *(pPMA+pgIndx) - *(pPMA+pgIndx) % (pMMDatSec->szPage);
+#endif
+}
+
+PHYSICAL_ADDRESS lookup_virt_to_phys(VIRTUAL_ADDRESS virt, MM_Data_Section_H* pMMDatSec)
+{
+    page_property prop;
+#ifdef NATIVE_PHYS_TO_VIRT
+    #error not implemented
+#else
+    return read_page(virt, &prop);
+#endif
 }

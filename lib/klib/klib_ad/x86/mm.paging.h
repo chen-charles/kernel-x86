@@ -11,10 +11,6 @@ EXTERN_C
 
 void flush_cache();
 
-// for 4MB pages
-uint32_t mm_edit_page(bool isPresent, uint32_t virt_loc, uint32_t phy_loc, uint8_t access_r, uint32_t* paging_data_addr, const uint32_t page_size);
-
-
 enum PagingMode {BIT32, PAE, IA32E};
 
 

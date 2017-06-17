@@ -40,7 +40,7 @@ typedef struct
 	
 	uint32_t    properties;	//bit 0: isInUse?
 	#define	MALLOC_ENTRY_FREE	0b00000000
-	#define	MALLOC_ENTRY_INUSE	0b00000001
+	#define	MALLOC_ENTRY_BUSY	0b00000001
     #define isEntryFree(pEntry) (!TESTBIT((pEntry->properties), 0))
 	
 	//data followed by this
@@ -56,9 +56,9 @@ Malloc_Ctx* Malloc_init(size_t szPage, size_t nSystemTotalPages)
     prop.required.present = true;
     prop.required.read = true;
     prop.required.write = true;
-    prop.required.run = false;
-    prop.required.priviliged = false;
-    prop.required.inuse = true;
+    prop.required.execute = false;
+    prop.required.privileged = false;
+    prop.required.busy = true;
     uintptr_t pbuf = (uintptr_t)mmap((void*)0, nBytesRequired, &prop);
 
     Malloc_Ctx* ctx = (Malloc_Ctx*)pbuf;
@@ -127,9 +127,9 @@ Malloc_Ctx* newMallocPage(size_t nPages, Malloc_Ctx* ctx)
     prop.required.present = true;
     prop.required.read = true;
     prop.required.write = true;
-    prop.required.run = false;
-    prop.required.priviliged = false;
-    prop.required.inuse = true;
+    prop.required.execute = false;
+    prop.required.privileged = false;
+    prop.required.busy = true;
     
     Malloc_Ctx* newCtx = (Malloc_Ctx*) mmap((void*)0, nPages*ctx->szPage, &prop);
     memcpy((void*)newCtx, (void*)ctx, sizeof(Malloc_Ctx));

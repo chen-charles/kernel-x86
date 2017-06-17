@@ -47,9 +47,9 @@ typedef struct _pg_prop_req
     bool present;   // true iff physically mapped 
     bool read;
     bool write;
-    bool run;
-    bool priviliged;
-    bool inuse;     // MM_mmap and MM_munmap operate on; if not needed, sync to present 
+    bool execute;
+    bool privileged;
+    bool busy;     // MM_mmap and MM_munmap operate on; if not needed, sync to present 
 } 
 page_property_required;
 

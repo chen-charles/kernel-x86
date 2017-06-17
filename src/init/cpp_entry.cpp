@@ -106,6 +106,7 @@ typedef struct
 }
 ContextSwitchCtx;
 
+extern "C" PHYSICAL_ADDRESS fetch_page_addr(VIRTUAL_ADDRESS from);
 
 int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
 {
@@ -172,12 +173,12 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         {
             for (int j=0; j<8; j++)
             {
-                VIRTUAL_ADDRESS mapped = read_page((i*8+j)*PAGESIZE, &prop);
+                PHYSICAL_ADDRESS mapped = read_page((i*8+j)*PAGESIZE, &prop);
 
                 // save old ctx
                 if (prev != nullptr)
                 {
-                    if (prop.required.present && prop.required.inuse)
+                    if (prop.required.present && prop.required.busy)
                     {
                         setbit(&(prevCtx->memory_owned[i]), j);
                     }
@@ -188,21 +189,23 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
                 }
 
                 // restore new ctx
-                if (TESTBIT(nextCtx->memory_owned[i], j) || (prevCtx != nullptr && (i*8+j)*PAGESIZE == lookup_virt_to_phys(prevCtx->esp)))
+                if (TESTBIT(nextCtx->memory_owned[i], j) 
+                    || (prevCtx != nullptr && (i*8+j)*PAGESIZE == lookup_virt_to_phys(prevCtx->esp, GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR))))
                 {
                     prop.required.present = true;
                     prop.required.read = true;
                     prop.required.write = true;
-                    prop.required.run = true;
-                    prop.required.inuse = true;
-                    prop.required.priviliged = false;
-                    write_page((i*8+j)*PAGESIZE, mapped ? mapped : lookup_phys_to_virt((i*8+j)*PAGESIZE), &prop);
+                    prop.required.execute = true;
+                    prop.required.busy = true;
+                    prop.required.privileged = false;
+                    write_page(fetch_page_addr((i*8+j)*PAGESIZE), (i*8+j)*PAGESIZE, &prop);
+                    // write_page((i*8+j)*PAGESIZE, mapped ? mapped : lookup_phys_to_virt((i*8+j)*PAGESIZE, GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR)), &prop);
                     flush_page((i*8+j)*PAGESIZE);
                 }
                 else if (mapped)
                 {
                     prop.required.present = false;
-                    write_page((i*8+j)*PAGESIZE, mapped, &prop);
+                    write_page(mapped, (i*8+j)*PAGESIZE, &prop);
                     flush_page((i*8+j)*PAGESIZE);
                 }
             }
@@ -361,8 +364,8 @@ Process* CreateProcessXRings(uintptr_t eip, Privilege priv, uint64_t priority)
     memset(pcsc, 0, sizeof(ContextSwitchCtx));
 
     read_page(0, &prop);
-    prop.required.priviliged = priv == Privilege::KERNEL;
-    prop.required.priviliged = false;
+    prop.required.privileged = priv == Privilege::KERNEL;
+    prop.required.privileged = false;
 
     pcsc->eax = 0;
     pcsc->esp = (uintptr_t)mmap(0, 0x400000, &prop) + 0x3fffcc;
@@ -392,9 +395,9 @@ Process* CreateProcessXRings(uintptr_t eip, Privilege priv, uint64_t priority)
             else
                 clearbit(&(pcsc->memory_owned[i]), j);
 
-            if ((i*8+j)*PAGESIZE == lookup_virt_to_phys(pcsc->eip - (pcsc->eip%PAGESIZE)))
+            if ((i*8+j)*PAGESIZE == lookup_virt_to_phys(pcsc->eip - (pcsc->eip%PAGESIZE), GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR)))
                 setbit(&(pcsc->memory_owned[i]), j);
-            if ((i*8+j)*PAGESIZE == lookup_virt_to_phys(pcsc->esp - (pcsc->esp%PAGESIZE)))
+            if ((i*8+j)*PAGESIZE == lookup_virt_to_phys(pcsc->esp - (pcsc->esp%PAGESIZE), GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR)))
                 setbit(&(pcsc->memory_owned[i]), j);
         }
 
@@ -420,7 +423,7 @@ void libproc_setup()
     page_property prop;
 
     read_page(0, &prop);
-    prop.required.priviliged = false;
+    prop.required.privileged = false;
 
     // TSS xrings setup
     // this is the new kernel stack when kernel-curproc starts running

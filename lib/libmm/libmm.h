@@ -25,10 +25,10 @@ libmm provides the mmap/munmap interface
 #ifndef LIB_MM
 #define LIB_MM
 
-#define USING_LOOKUP
-
 #include "type.h"
 #include "bit_op.h"
+
+#define NATIVE_VIRT_TO_PHYS
 
 EXTERN_C
 
@@ -83,9 +83,9 @@ typedef struct _pg_prop_req
     bool present;   // true iff physically mapped 
     bool read;
     bool write;
-    bool run;
-    bool priviliged;
-    bool inuse;     // MM_mmap and MM_munmap operate on; if not needed, sync to present 
+    bool execute;
+    bool privileged;
+    bool busy;     // MM_mmap and MM_munmap operate on; if not needed, sync to present 
 } 
 page_property_required;
 
@@ -102,19 +102,16 @@ page_property;
 /*
 if page is not present, return value MUST be ZERO. 
 */
-VIRTUAL_ADDRESS read_page(PHYSICAL_ADDRESS from, page_property* properties);
-VIRTUAL_ADDRESS write_page(PHYSICAL_ADDRESS from, VIRTUAL_ADDRESS to, page_property* properties);
-void flush_page(PHYSICAL_ADDRESS from);
-
-/*
-optional lookup requisites
-#define USING_LOOKUP 
-*/
-#ifdef USING_LOOKUP
-VIRTUAL_ADDRESS lookup_phys_to_virt(PHYSICAL_ADDRESS phys);
-PHYSICAL_ADDRESS lookup_virt_to_phys(VIRTUAL_ADDRESS virt);
-#else
-#warning "USING_LOOKUP is not defined, munmap is working in SLOW mode"
+#ifdef NATIVE_VIRT_TO_PHYS  // indexing by virtpg, storing physpg
+    PHYSICAL_ADDRESS read_page(VIRTUAL_ADDRESS from, page_property* properties);
+    PHYSICAL_ADDRESS write_page(PHYSICAL_ADDRESS from, VIRTUAL_ADDRESS to, page_property* properties);
+    void flush_page(VIRTUAL_ADDRESS from);
+#elif NATIVE_PHYS_TO_VIRT   // indexing by physpg, storeing virtpg
+    VIRTUAL_ADDRESS read_page(PHYSICAL_ADDRESS from, page_property* properties);
+    VIRTUAL_ADDRESS write_page(PHYSICAL_ADDRESS from, VIRTUAL_ADDRESS to, page_property* properties);
+    void flush_page(PHYSICAL_ADDRESS from);
+#else 
+#error Must select a native paging method for libmm. 
 #endif
 
 /* END REQUIRED INTERFACE */
@@ -158,6 +155,9 @@ libmm should support mmap/munmap and a public mapping interface for unpreventabl
 */
 
 /* BEGIN PUBLIC INTERFACE */
+
+VIRTUAL_ADDRESS lookup_phys_to_virt(PHYSICAL_ADDRESS phys, MM_Data_Section_H* pMMDatSec);
+PHYSICAL_ADDRESS lookup_virt_to_phys(VIRTUAL_ADDRESS virt, MM_Data_Section_H* pMMDatSec);
 
 /*
 kernel internal protected memory mapping
