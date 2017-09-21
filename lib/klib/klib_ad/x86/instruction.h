@@ -5,6 +5,8 @@
 
 #include <klib_sl/type.h>
 
+EXTERN_C
+
 /* Port IO */
 void outb(uint16_t port, uint8_t val);
 #ifndef out_byte
@@ -53,5 +55,7 @@ void writemsr(uint32_t msr, byte* b_array_8);
 /* Maskable Interrupt Control */
 #define cli() __asm__ volatile ("cli")
 #define sti() __asm__ volatile ("sti")
+
+EXTERN_C_END
 
 #endif

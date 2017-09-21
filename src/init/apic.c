@@ -37,8 +37,29 @@ int lapic_init()
 
 int ioapic_init()
 {
-	write_ioapic_register(DEFAULT_IOAPIC_LOC, 0x12, INT_VEC_IOAPIC_IRQ1);
-    write_ioapic_register(DEFAULT_IOAPIC_LOC, 0x13, 0);
+	// wiki.osdev.org/IOAPIC
+
+	// IOREDTBL
+	// Following there are two 32-bit register for each IRQ. The first IRQ has indexes 0x10 and 0x11, the second 0x12 and 0x13, the third 0x14 and 0x15, and so on. So the Redirection Entry register for IRQ n is 0x10 + n * 2 (+ 1). In the first of the two registers you access to the LOW uint32_t / bits 31:0, and the second for the high uint32_t / 63:32. Each redirection entry is made of the following fields:
+	// Field	Bits	Description
+	// Vector	0 - 7	The Interrupt vector that will be raised on the specified CPU(s).
+	// Delivery Mode	8 - 10	How the interrupt will be sent to the CPU(s). It can be 000 (Fixed), 001 (Lowest Priority), 010 (SMI), 100 (NMI), 101 (INIT) and 111 (ExtINT). Most of the cases you want Fixed mode, or Lowest Priority if you don't want to suspend a high priority task on some important Processor/Core/Thread.
+	// Destination Mode	11	Specify how the Destination field shall be interpreted. 0: Physical Destination, 1: Logical Destination
+	// Delivery Status	12	If 0, the IRQ is just relaxed and waiting for something to happen (or it has fired and already processed by Local APIC(s)). If 1, it means that the IRQ has been sent to the Local APICs but it's still waiting to be delivered.
+	// Pin Polarity	13	0: Active high, 1: Active low. For ISA IRQs assume Active High unless otherwise specified in Interrupt Source Override descriptors of the MADT or in the MP Tables.
+	// Remote IRR	14	TODO
+	// Trigger Mode	15	0: Edge, 1: Level. For ISA IRQs assume Edge unless otherwise specified in Interrupt Source Override descriptors of the MADT or in the MP Tables.
+	// Mask	16	Just like in the old PIC, you can temporary disable this IRQ by setting this bit, and reenable it by clearing the bit.
+	// Destination	56 - 63	This field is interpreted according to the Destination Format bit. If Physical destination is choosen, then this field is limited to bits 56 - 59 (only 16 CPUs addressable). You put here the APIC ID of the CPU that you want to receive the interrupt. TODO: Logical destination format...
+	
+	// keyboard 
+	write_ioapic_register(DEFAULT_IOAPIC_LOC, IOREDTBL(1), INT_VEC_IOAPIC_IRQ1);
+	write_ioapic_register(DEFAULT_IOAPIC_LOC, IOREDTBL(1)+1, 0);
+	
+	// serial port 1/3 
+	write_ioapic_register(DEFAULT_IOAPIC_LOC, IOREDTBL(4), INT_VEC_IOAPIC_IRQ4);
+	write_ioapic_register(DEFAULT_IOAPIC_LOC, IOREDTBL(4)+1, 0);
+	
 }
 
 void mapLAPIC(uintptr_t apic_base, uint32_t ticks_per_second)

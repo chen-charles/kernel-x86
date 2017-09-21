@@ -86,7 +86,13 @@ typedef struct
     uint32_t    ebx;
     uint32_t    edx;
     uint32_t    ecx;
-    uint32_t    eax;    // EAX: esp - 0x4
+    uint32_t    eax_stub;    // EAX: esp - 0x4
+
+    uint32_t    gs;
+    uint32_t    fs;
+    uint32_t    es;
+    uint32_t    ds;
+    uint32_t    eax;
 
     // stack layout right after interrupt is occured
     // ->esp in param is right here
@@ -165,7 +171,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         if (prev != nullptr)
         {
             fxsave(&(prevCtx->fxsave[0]));
-            for (int i=-8; i<5; i++)
+            for (int i=-8-5; i<5; i++)
                 *(&(prevCtx->eip)+i) = *(((uint32_t*)esp)+i);
         }
 
@@ -218,7 +224,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
             
             // case 1
             if (prevProc != nullptr)
-                prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * 3;  // intr off;   // exact previous stack location
+                prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * (3 + 5);  // intr off;   // exact previous stack location
 
 
             __asm__ volatile ( "push eax" );
@@ -247,7 +253,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         {
             bochsdbg_bp_eax(2);
 
-            prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * 3; // intr off;   // exact previous stack location
+            prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * (3 + 5); // intr off;   // exact previous stack location
 
             __asm__ volatile ( "push eax" );
             __asm__ volatile ( "mov eax, esp" );
@@ -276,12 +282,13 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
             esp = (void*)(uint32_t*)((TSS*)pTSSegment)->esp0;
         }
 
-        // case 3
+        // case 3 USER->KERNEL_INT->KERNEL
         if (prevProc != nullptr && prevProc->priv == Privilege::USER && nextProc->priv == Privilege::KERNEL)
         {
             bochsdbg_bp_eax(3);
 
-            prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * 5;
+            // prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * (3 + 5);
+            prevCtx->esp = *((uint32_t*)esp+3);
             prevCtx->ss = *((uint32_t*)esp+4);
 
             // at tss stack, switch to kernel stack
@@ -307,7 +314,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
             esp = (void*)(nextCtx->esp - sizeof(uint32_t) * 3);
         }
 
-        // case 4
+        // case 4 USER->KERNEL_INT->USER
         if (prevProc != nullptr && prevProc->priv == Privilege::USER && nextProc->priv == Privilege::USER)
         {
             bochsdbg_bp_eax(4);
@@ -319,7 +326,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
 
         // restore nextCtx
         fxrstor(&(nextCtx->fxsave[0]));
-        for (int i=-8; i<5; i++)
+        for (int i=-8-5; i<(nextProc->priv == Privilege::KERNEL ? 3 : 5); i++)  // do not restore ss:esp -> kernel; invalid
             *(((uint32_t*)esp)+i) = *(&(nextCtx->eip)+i);
 
         bochsdbg_bp_eax(0x200);
@@ -329,19 +336,30 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
 }
 
 extern "C" void* aligned_malloc(size_t size, size_t alignment);
+#include "include/serial.h"
 
 void uinitProcess()
 {
-    __asm__ volatile ("xor eax, eax");
-    while (1) __asm__ volatile ("inc eax");
+    __asm__ volatile ("mov ax, ss");
+    __asm__ volatile ("mov ds, ax");
+    __asm__ volatile ("mov es, ax");
+    __asm__ volatile ("mov fs, ax");
+    __asm__ volatile ("mov gs, ax");
+    
+    while (1) serial_println("ping from user space!");
 }
 
 void kinitProcess()
 {
+    __asm__ volatile ("mov ax, ss");
+    __asm__ volatile ("mov ds, ax");
+    __asm__ volatile ("mov es, ax");
+    __asm__ volatile ("mov fs, ax");
+    __asm__ volatile ("mov gs, ax");
+
     // pci scan
 
-    __asm__ volatile ("xor ebx, ebx");
-    while (1) __asm__ volatile ("inc ebx");
+    while (1) serial_println("ping from kernel space!");
 }
 
 void set_tss_esp(uint32_t esp)
@@ -377,10 +395,14 @@ Process* CreateProcessXRings(uintptr_t eip, Privilege priv, uint64_t priority)
         case Privilege::KERNEL:
             pcsc->cs = 0x08;    // allow RPL3 access
             pcsc->ss = 0x18;
+            pcsc->ds = pcsc->es = pcsc->fs = pcsc->gs = pcsc->ss;
+            pcsc->eflags = SETBIT(0, 12) + SETBIT(0, 13);
             break;
         case Privilege::USER:
             pcsc->cs = 0x23;
             pcsc->ss = 0x2B;
+            pcsc->ds = pcsc->es = pcsc->fs = pcsc->gs = pcsc->ss;
+            pcsc->eflags = SETBIT(0, 12) + SETBIT(0, 13);
             break;
         default:
         ;

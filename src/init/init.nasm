@@ -14,6 +14,7 @@ extern  c_idt_init
 
 extern  lapic_init
 extern  ioapic_init
+extern  serial_init
 extern  fpu_sse_init
 extern  libmm_init
 extern  libmalloc_init
@@ -74,13 +75,15 @@ init:
         mov ax, 0x18
 
         mov ss, ax
-        mov es, ax
         mov ds, ax
+        mov es, ax
         mov fs, ax
         mov gs, ax
 
+        xchg bx, bx
         call    lapic_init
         call    ioapic_init
+        call    serial_init
         sti
 
         call    fpu_sse_init

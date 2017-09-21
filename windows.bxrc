@@ -2,6 +2,7 @@
 plugin_ctrl: unmapped=1, biosdev=1, speaker=1, extfpuirq=1, parallel=1, serial=1, gameport=1, iodebug=1
 config_interface: win32config
 # display_library: win32, options="gui_debug"
+# gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0
 display_library: win32
 memory: host=2048, guest=1024
 romimage: file="C:\Program Files (x86)\Bochs-2.6.9/BIOS-bochs-latest"
@@ -46,7 +47,8 @@ sound: driver="default", waveout=none, wavein=none
 speaker: enabled=1, mode=sound
 parport1: enabled=1, file=none
 parport2: enabled=0
-com1: enabled=1, mode=null
+#com1: enabled=1, mode=term, dev=\\.\pipe\kernel-x86
+com1: enabled=1, mode=file, dev=serial.log
 com2: enabled=0
 com3: enabled=0
 com4: enabled=0

@@ -17,8 +17,43 @@ EXTERN_C
 #define INT_VEC_APIC_LINT1	INTERNEL_INTERRUPT_BASE + 37
 #define INT_VEC_APIC_ERR	INTERNEL_INTERRUPT_BASE + 38
 
+// https://en.wikipedia.org/wiki/Interrupt_request_(PC_architecture)
+
+// Master PIC[edit]
+// IRQ 0 – system timer (cannot be changed)
+// IRQ 1 – keyboard controller (cannot be changed)
+// IRQ 2 – cascaded signals from IRQs 8–15 (any devices configured to use IRQ 2 will actually be using IRQ 9)
+// IRQ 3 – serial port controller for serial port 2 (shared with serial port 4, if present)
+// IRQ 4 – serial port controller for serial port 1 (shared with serial port 3, if present)
+// IRQ 5 – parallel port 2 and 3  or  sound card
+// IRQ 6 – floppy disk controller
+// IRQ 7 – parallel port 1. It is used for printers or for any parallel port if a printer is not present. It can also be potentially be shared with a secondary sound card with careful management of the port.
+// Slave PIC[edit]
+// IRQ 8 – real-time clock (RTC)
+// IRQ 9 – Advanced Configuration and Power Interface (ACPI) system control interrupt on Intel chipsets.[1] Other chipset manufacturers might use another interrupt for this purpose, or make it available for the use of peripherals (any devices configured to use IRQ 2 will actually be using IRQ 9)
+// IRQ 10 – The Interrupt is left open for the use of peripherals (open interrupt/available, SCSI or NIC)
+// IRQ 11 – The Interrupt is left open for the use of peripherals (open interrupt/available, SCSI or NIC)
+// IRQ 12 – mouse on PS/2 connector
+// IRQ 13 – CPU co-processor  or  integrated floating point unit  or  inter-processor interrupt (use depends on OS)
+// IRQ 14 – primary ATA channel (ATA interface usually serves hard disk drives and CD drives)
+// IRQ 15 – secondary ATA channel
+
 #define INT_VEC_IOAPIC_IRQ0 INTERNEL_INTERRUPT_BASE + 39
 #define INT_VEC_IOAPIC_IRQ1 INTERNEL_INTERRUPT_BASE + 40
+#define INT_VEC_IOAPIC_IRQ2 INTERNEL_INTERRUPT_BASE + 41
+#define INT_VEC_IOAPIC_IRQ3 INTERNEL_INTERRUPT_BASE + 42
+#define INT_VEC_IOAPIC_IRQ4 INTERNEL_INTERRUPT_BASE + 43
+#define INT_VEC_IOAPIC_IRQ5 INTERNEL_INTERRUPT_BASE + 44
+#define INT_VEC_IOAPIC_IRQ6 INTERNEL_INTERRUPT_BASE + 45
+#define INT_VEC_IOAPIC_IRQ7 INTERNEL_INTERRUPT_BASE + 46
+#define INT_VEC_IOAPIC_IRQ8 INTERNEL_INTERRUPT_BASE + 47
+#define INT_VEC_IOAPIC_IRQ9 INTERNEL_INTERRUPT_BASE + 48
+#define INT_VEC_IOAPIC_IRQ10 INTERNEL_INTERRUPT_BASE + 49
+#define INT_VEC_IOAPIC_IRQ11 INTERNEL_INTERRUPT_BASE + 50
+#define INT_VEC_IOAPIC_IRQ12 INTERNEL_INTERRUPT_BASE + 51
+#define INT_VEC_IOAPIC_IRQ13 INTERNEL_INTERRUPT_BASE + 52
+#define INT_VEC_IOAPIC_IRQ14 INTERNEL_INTERRUPT_BASE + 53
+#define INT_VEC_IOAPIC_IRQ15 INTERNEL_INTERRUPT_BASE + 54
 
 #define APIC_TIMER_FREQUENCY    1000    //number of ticks per second
 
