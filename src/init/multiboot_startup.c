@@ -1,8 +1,7 @@
 #include    "include/multiboot2.h"
+#include    "include/bochsdbg.h"
 #include    <klib_sl/type.h>
 #include    <klib_sl/c/klib_sl.h>
-
-uint32_t g_bootinfo_p;
 
 uintreg_t multiboot_startup(uint32_t header);
 
@@ -17,9 +16,7 @@ uintreg_t multiboot_startup(uint32_t header)
 {
     uint32_t totalsize = *(uint32_t*)header;
     uintptr_t tagHeaderLoc = header+8;
-    
-    if (header >= g_bootinfo_p && header <= g_bootinfo_p*2) g_bootinfo_p *= 2;
-    
+
     while (tagHeaderLoc != header + totalsize)
     {
         multiboot_tag_t* tagHeader = (multiboot_tag_t*)tagHeaderLoc;

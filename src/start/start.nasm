@@ -7,13 +7,6 @@ align 4
 
 extern  init
 
-[SECTION .data]
-
-[SECTION .bss]
-StackSpace		resb	10 * 1024
-StackTop:
-
-
 [section .text]
 global _start
 global hang
@@ -35,16 +28,13 @@ MULTIBOOT2_HEADER_LENGTH EQU .multiboot2_end - .multiboot2
 .multiboot2:
     dd MULTIBOOT2_HEADER_MAGIC   ; magic number (multiboot 2)
     dd 0                         ; architecture 0 (protected mode i386)
-    ;dd 24
-    ;dd .multiboot2_end - .multiboot2 ; header length
     dd MULTIBOOT2_HEADER_LENGTH
-    ; checksum
-    ;dd 0x100000000 - (MULTIBOOT2_HEADER_MAGIC + 0 + (.multiboot2 - .multiboot2_end))
-    ;dd 0x100000000 - (MULTIBOOT2_HEADER_MAGIC + 0 + 24)
     dd 0x100000000 - (MULTIBOOT2_HEADER_MAGIC + 0 + MULTIBOOT2_HEADER_LENGTH)
     
     ; multiboot tags 
-    InformationRequestTag   0, 0
+    InformationRequestTag   0, 1
+    dd 9
+
     AddressTag  0, .multiboot2, _start, 0, 0
     EntryAddressTag 0, _start
     framebufferTag  0, 800, 600, 32
@@ -59,9 +49,12 @@ MULTIBOOT2_HEADER_LENGTH EQU .multiboot2_end - .multiboot2
 align 4
 .raw_boot:
         hlt
-        
+
+.StackSpace		resb	10 * 1024
+.StackTop:
+
 .realstart:
-        mov esp, StackTop   ;setup stack pointer
+        mov esp, .StackTop   ;setup stack pointer
         cmp eax, MULTIBOOT2_BOOTLOADER_MAGIC     ;is multiboot failed
         jne .raw_boot
         

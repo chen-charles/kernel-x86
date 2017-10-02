@@ -58,6 +58,19 @@ PINNED
 0x00002000	0x00003000	Custom Interrupt Handler Table
 
 
+0x00100000	Kernel ELF .text location
+this address is always sync-ed with ld -Ttext X
+The following information must be present ALL TIME in memory (accessible by priv-rings), 
+	1. GDT(R), IDT(R), PagingData
+	2. Interrupt handlers and subroutines
+	3. Global Memory Manager routines and data
+	4. Process Scheduler routines and data
+	5. Hardware reserved (APIC EOI memory, etc.)
+When kernel sets up the runtime environment for the first time, 
+	1. GDT(R), IDT(R) are stored within first 0x10000
+	2. Routines and libs are loaded within kernel [.text]
+	3. Paging data must be placed at a location outside kernel
+
 */
 
 // Global Shared Data Section	0x0000	0x1000
