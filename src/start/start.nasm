@@ -7,6 +7,12 @@ align 4
 
 extern  init
 
+[section .bss]
+align 4
+StackSpace		resb	4 * 4096
+StackTop:
+
+
 [section .text]
 global _start
 global hang
@@ -50,11 +56,8 @@ align 4
 .raw_boot:
         hlt
 
-.StackSpace		resb	10 * 1024
-.StackTop:
-
 .realstart:
-        mov esp, .StackTop   ;setup stack pointer
+        mov esp, StackTop   ;setup stack pointer
         cmp eax, MULTIBOOT2_BOOTLOADER_MAGIC     ;is multiboot failed
         jne .raw_boot
         

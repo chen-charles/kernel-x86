@@ -3,3 +3,4 @@ build/
 *.iso
 ref/
 iso/kernel32
+*.log

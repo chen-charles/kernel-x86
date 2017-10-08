@@ -19,7 +19,7 @@ uintreg_t multiboot_startup(uint32_t header)
 
     while (tagHeaderLoc != header + totalsize)
     {
-        multiboot_tag_t* tagHeader = (multiboot_tag_t*)tagHeaderLoc;
+        struct multiboot_tag* tagHeader = (struct multiboot_tag*)tagHeaderLoc;
         
         switch(tagHeader->type)
         {
@@ -30,6 +30,9 @@ uintreg_t multiboot_startup(uint32_t header)
             case MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME:
                 break;
             case MULTIBOOT_TAG_TYPE_MODULE:
+                ((struct multiboot_tag_module*)tagHeader)->mod_start;
+                bochsdbg_bp_eax(((struct multiboot_tag_module*)tagHeader)->mod_start);
+                bochsdbg_bp_eax(((struct multiboot_tag_module*)tagHeader)->mod_end);
                 break;
             case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
                 break;
@@ -54,6 +57,7 @@ uintreg_t multiboot_startup(uint32_t header)
                     *p = 0x000000FF;    // X R G B
                 break;
             case MULTIBOOT_TAG_TYPE_ELF_SECTIONS:
+                // MUST parse this to determine the actual loaded location
                 break;
             case MULTIBOOT_TAG_TYPE_APM:    // APM Table --> successor: ACPI
                 break;

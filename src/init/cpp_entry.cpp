@@ -460,6 +460,9 @@ void libproc_setup()
     // create user-init process, R3
     CreateProcessXRings((uintptr_t)uinitProcess, Privilege::USER, 2);
 
+    // create user-init process, R3
+    CreateProcessXRings((uintptr_t)uinitProcess, Privilege::USER, 2);
+
     // signal scheduler tick is now available
     // set_interrupt_handler(&timerTick_intr, INT_VEC_APIC_TIMER);
 
