@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(kernel-x86)
+project(initrd)
 
 set(CMAKE_VERBOSE_MAKEFILE off)
 SET (CMAKE_C_FLAGS "-std=c11 -O0 -masm=intel -m32 -ffreestanding -fno-exceptions -nostdlib -fno-stack-protector")
@@ -14,18 +14,8 @@ set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 
-#MESSAGE(STATUS "clink: " ${CMAKE_C_LINK_EXECUTABLE})
-set(CMAKE_KERNELLD_LINK_EXECUTABLE "ld <LINK_FLAGS> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin/initrd/)
+set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin/initrd/)
 
-SET (CMAKE_ASM_NASM_OBJECT_FORMAT "elf")
-ENABLE_LANGUAGE (ASM_NASM)
-
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build/bin)
-
-include_directories(${PROJECT_SOURCE_DIR}/lib)
-include_directories(${PROJECT_SOURCE_DIR}/lib/klib)
-
-add_subdirectory(lib)
-add_subdirectory(src)
-add_subdirectory(initrd)
+add_subdirectory(binary)
+add_subdirectory(proc)

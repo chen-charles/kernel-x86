@@ -28,6 +28,8 @@ Low Memory (the first MiB)
 0x0009FC00 (typical location)	0x0009FFFF	1 KiB	RAM (unusable)	EBDA (Extended BIOS Data Area)
 0x000A0000	0x000FFFFF	384 KiB	various (unusable)	Video memory, ROM Area
 
+// it is safe to use the first MiB to initialize essential structures, as initrd can never be loaded below 1 MiB
+
 
 "Upper" Memory (> 1 MiB)
 start	end	size	region/exception	description
@@ -96,6 +98,8 @@ When kernel sets up the runtime environment for the first time,
 	#define PREFERRED_MMAP_CTR_PTR	(SHARED_PTRS+4)
 	#define LIBMALLOC_CTX_PTR	(SHARED_PTRS+8)
 	#define LIBPROC_SCHEDULER_PTR	(SHARED_PTRS+12)
+	#define INITRD_PTR	(SHARED_PTRS+16)
+	#define INITRD_SZ	(SHARED_PTRS+20)
 
 // Global Tables
 #define pGDTable	0x00000500
@@ -104,6 +108,8 @@ When kernel sets up the runtime environment for the first time,
 #define pIHTable	0x00002000
 
 #define PM_PAGING_4MB_VIRTPHYS_DATA	0x00010000	//len=0x4000, ends at 0x14000
+
+// TODO: furthur adjustments required for this data (possible initrd overwrite / memory does not exist) 
 #define PM_PAGING_4KB_VIRTPHYS_DATA 0x10000000
 
 EXTERN_C_END

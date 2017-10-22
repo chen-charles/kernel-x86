@@ -1,11 +1,14 @@
 #include    "include/cpp_entry.hpp"
 #include    "include/memloc.h"
 #include    "include/bochsdbg.h"
+#include    <klib_sl/c/klib_sl.h>
 #include    <klib_ad/x86/gdt.h>
 #include    <klib_ad/x86/idt.h>
 #include    <klib_ad/x86/fpusse.h>
 #include    <klib_ad/x86/mm.paging.h>
 #include    <libmm/libmm.h>
+#include    <libramfs/ramfs.h>
+#include    <libelfff/libelfff.h>
 #include    "include/kinit_alloc.h"
 
 extern "C" void __cxa_pure_virtual()
@@ -463,10 +466,26 @@ void libproc_setup()
     // create user-init process, R3
     CreateProcessXRings((uintptr_t)uinitProcess, Privilege::USER, 2);
 
-    // signal scheduler tick is now available
-    // set_interrupt_handler(&timerTick_intr, INT_VEC_APIC_TIMER);
+    // load ramdisk/kinitProcess
+    memblock m;
+    m.ptr = GetValAt(uint32_t, INITRD_PTR);
+    m.len = GetValAt(uint32_t, INITRD_SZ);
 
+    m = fs_loc_buf(m, "./proc");
+    if (m.ptr == 0)
+        serial_printf("initrd cannot be loaded, init failed. ptr=%d, len=%d\n", m.ptr, m.len);
+    else
+    {
+        serial_printf("proc loaded. ptr=%d, len=%d\n", m.ptr, m.len);
+        elfff_ctx ctx;
+        ctx.raw.ptr = m.ptr;
+        ctx.raw.len = m.len;
+        serial_printf("result=%d\n", elfff_load(&ctx));
+    }
+
+    // signal scheduler tick is now available
     set_interrupt_handler(ctxSwitch_timerTick_intr, INT_VEC_APIC_TIMER);
+
     // wait for interrupt, end of init.
     sti();
     while (1);

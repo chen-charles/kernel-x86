@@ -8,7 +8,6 @@ SECTIONS
     .start : 
     {
         */start.nasm.o(.*)
-        
     }
 
     .init : ALIGN (0x1000) 

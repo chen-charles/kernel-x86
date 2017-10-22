@@ -47,7 +47,7 @@ int serial_init()
     set_interrupt_handler(serial_irq_handler, INT_VEC_IOAPIC_IRQ4);
 
     // read_serial();  // blocking
-    serial_printf("Hello World!\n%d", 102938);
+    serial_println("Serial started. ");
     
     return 0;
 }
@@ -114,6 +114,9 @@ int serial_printf(const char* format, ...)
                     rev_num += num%10;
                 }
 
+                if (!rev_num)
+                    write_serial('0');
+                    
                 for (; rev_num; rev_num /= 10)
                     write_serial('0' + rev_num%10);
                 
@@ -129,7 +132,7 @@ int serial_printf(const char* format, ...)
         }
     }
 
-    va_end(format);
+    va_end(args);
     return indx;
 
 __printf_format_unrecognized:

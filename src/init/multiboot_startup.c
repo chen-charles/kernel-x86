@@ -2,6 +2,7 @@
 #include    "include/bochsdbg.h"
 #include    <klib_sl/type.h>
 #include    <klib_sl/c/klib_sl.h>
+#include    "include/memloc.h"
 
 uintreg_t multiboot_startup(uint32_t header);
 
@@ -30,9 +31,8 @@ uintreg_t multiboot_startup(uint32_t header)
             case MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME:
                 break;
             case MULTIBOOT_TAG_TYPE_MODULE:
-                ((struct multiboot_tag_module*)tagHeader)->mod_start;
-                bochsdbg_bp_eax(((struct multiboot_tag_module*)tagHeader)->mod_start);
-                bochsdbg_bp_eax(((struct multiboot_tag_module*)tagHeader)->mod_end);
+                *(uint32_t*)(INITRD_PTR) = ((struct multiboot_tag_module*)tagHeader)->mod_start;
+                *(uint32_t*)(INITRD_SZ) = ((struct multiboot_tag_module*)tagHeader)->mod_end - *(uint32_t*)(INITRD_PTR);
                 break;
             case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
                 break;
