@@ -481,6 +481,8 @@ void libproc_setup()
         ctx.raw.ptr = m.ptr;
         ctx.raw.len = m.len;
         serial_printf("result=%d\n", elfff_load(&ctx));
+        CreateProcessXRings(ctx.prog_entry, Privilege::USER, 2);
+        bochsdbg_bp_eax(ctx.prog_entry);
     }
 
     // signal scheduler tick is now available

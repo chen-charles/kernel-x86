@@ -42,15 +42,40 @@ bool elf_header_validate(elfff_ctx *ctx)
 
     return true;
 }
-#undef bochsdbg_bp_eax
-#define bochsdbg_bp() __asm__ volatile ( "xchg bx, bx" )
-#define bochsdbg_bp_eax(eax) \
-{   \
-    __asm__ volatile ("push eax");  \
-    __asm__ volatile ("mov eax, %0" : : ""((long)(eax))); \
-    bochsdbg_bp();  \
-    __asm__ volatile ("pop eax");   \
+
+#ifndef elf_
+#ifdef __x86_64__
+#define elf_(name) Elf64_ ## name
+#define elf_ab(a, b) a ## 64 ## b
+#else
+#define elf_(name) Elf32_ ## name
+#define elf_ab(a, b) a ## 32 ## b
+#endif
+#endif
+
+static inline elf_(Phdr*) get_phdr(elfff_ctx* ctx, size_t index)
+{
+    return ((elf_(Phdr*))((ctx->raw).ptr + (ctx->header)->e_phoff)) + index;
 }
+
+static inline elf_(Shdr)* get_shdr(elfff_ctx* ctx, size_t index)
+{
+    return ((elf_(Shdr*))((ctx->raw).ptr + (ctx->header)->e_shoff)) + index;
+}
+
+elf_(Addr) get_actual_address(elfff_ctx* ctx, elf_(Addr) p_vaddr)
+{
+    for(int i = 0; i < ctx->header->e_phnum; i++)
+    {
+        elf_(Phdr*) phdr = get_phdr(ctx, i);
+        if (phdr->p_vaddr <= p_vaddr && 
+            phdr->p_vaddr + phdr->p_memsz > p_vaddr)
+            return p_vaddr - phdr->p_vaddr + phdr->p_paddr;
+    }
+    
+    return 0;
+}
+
 ELFFF_STATUS elfff_load(elfff_ctx* ctx)
 {
     #ifdef __x86_64__
@@ -59,24 +84,19 @@ ELFFF_STATUS elfff_load(elfff_ctx* ctx)
     elfff_dprintf("running in x86 mode\n");
     #endif
     
-    ctx->header = (
-        #ifdef __x86_64__
-                Elf64_Ehdr*
-        #else
-                Elf32_Ehdr*
-        #endif
-            )((ctx->raw).ptr); 
+    ctx->header = ((ctx->raw).ptr); 
     if (!elf_header_validate(ctx))
         return ELFFF_HEADER_INVALID;
 
-    ctx->pheader = (
-        #ifdef __x86_64__
-                Elf64_Phdr*
-        #else
-                Elf32_Phdr*
-        #endif
-            )((ctx->raw).ptr + (ctx->header)->e_phoff);
+    ctx->pheader = ((ctx->raw).ptr + (ctx->header)->e_phoff);
 
+    ctx->sheader = ((ctx->raw).ptr + (ctx->header)->e_shoff);
+    
+    // String table
+    if (ctx->header->e_shstrndx == SHN_UNDEF) ctx->strtab = NULL;
+    else ctx->strtab = (char*)ctx->header + (ctx->sheader + ctx->header->e_shstrndx)->sh_offset;
+
+    // Load Elf Phys Headers
     elfff_page_property pp;
     void* mapped;
     for (size_t i=0; i<ctx->header->e_phnum; i++)
@@ -99,17 +119,45 @@ ELFFF_STATUS elfff_load(elfff_ctx* ctx)
             case PT_DYNAMIC:
                 break;      
             default:
-                elfff_dprintf("[SKIP] not implemented\n");
+                elfff_dprintf("Phdr type=%d not implemented\n", ctx->pheader->p_type);
         }
         
-        ctx->pheader = (
-            #ifdef __x86_64__
-                    Elf64_Phdr*
-            #else
-                    Elf32_Phdr*
-            #endif
-                )((uintptr_t)ctx->pheader + ctx->header->e_phentsize);
+        ctx->pheader++;
     }
 
+    for (size_t i = 0; i < ctx->header->e_shnum; i++)
+    {
+        if(ctx->sheader->sh_type == SHT_REL)
+        {
+            // sh_info -> section index to be relocated
+            // sh_link -> symtab for this relocation section
+            elf_(Shdr*) symtab = get_shdr(ctx, ctx->sheader->sh_link);
+            elf_(Shdr*) target = get_shdr(ctx, ctx->sheader->sh_info);
+            elf_(Rel*) rel = (ctx->raw).ptr + ctx->sheader->sh_offset;
+
+			// Process each entry in the table
+            for(size_t j = 0; j < ctx->sheader->sh_size / ctx->sheader->sh_entsize; j++)
+            {
+                rel[j].r_offset = get_actual_address(ctx, rel[j].r_offset);
+                if (rel[j].r_offset == 0) return ELFFF_VADDR_INVALID;
+                switch (elf_ab(ELF, _R_TYPE)(rel[j].r_info))
+                {
+                    case R_386_32:
+                        *(uintptr_t*)(rel[j].r_offset) = get_actual_address(ctx, *(uintptr_t*)(rel[j].r_offset));
+                        break;
+                    case R_386_PC32:
+                        break;
+                    default:
+                        ;
+                }
+                
+
+            }
+        }
+        ctx->sheader ++;
+    }
+
+    ctx->prog_entry = get_actual_address(ctx, ctx->header->e_entry);
     return ELFFF_SUCCESS;
 }
+

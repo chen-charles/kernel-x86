@@ -49,12 +49,16 @@ typedef struct _elfff_context
     #ifdef __x86_64__
     Elf64_Ehdr* header;
     Elf64_Phdr* pheader;
+    Elf64_Shdr* sheader;
     #else
     Elf32_Ehdr* header;
     Elf32_Phdr* pheader;
+    Elf32_Shdr* sheader;
     #endif
 
+    char*   strtab;
     
+    uintptr_t   prog_entry;
 }
 elfff_ctx;
 
@@ -62,6 +66,7 @@ typedef unsigned int ELFFF_STATUS;
 #define ELFFF_SUCCESS   0
 #define ELFFF_HEADER_INVALID    1
 #define ELFFF_MMAP_FAIL 2
+#define ELFFF_VADDR_INVALID 3
 
 ELFFF_STATUS elfff_load(elfff_ctx* context);
 
