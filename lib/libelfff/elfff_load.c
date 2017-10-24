@@ -1,6 +1,6 @@
 #include    "libelfff.h"
 
-bool elf_header_validate(elfff_ctx *ctx)
+bool elfff_header_validate(elfff_ctx *ctx)
 {
     if (!ctx->header)
     {
@@ -63,7 +63,7 @@ static inline elf_(Shdr)* get_shdr(elfff_ctx* ctx, size_t index)
     return ((elf_(Shdr*))((ctx->raw).ptr + (ctx->header)->e_shoff)) + index;
 }
 
-elf_(Addr) get_actual_address(elfff_ctx* ctx, elf_(Addr) p_vaddr)
+elf_(Addr) elfff_get_actual_address(elfff_ctx* ctx, elf_(Addr) p_vaddr)
 {
     for(int i = 0; i < ctx->header->e_phnum; i++)
     {
@@ -76,6 +76,22 @@ elf_(Addr) get_actual_address(elfff_ctx* ctx, elf_(Addr) p_vaddr)
     return 0;
 }
 
+elf_(Addr) elfff_get_symbol_value(elfff_ctx* ctx, elf_(Word) sec_indx, elf_(Word) entry_indx)
+{
+    if(sec_indx == SHN_UNDEF || entry_indx == SHN_UNDEF) return 0;
+    elf_(Sym) symbol = ((elf_(Sym*))((uintptr_t)(ctx->raw.ptr) + get_shdr(ctx, sec_indx)->sh_offset))[entry_indx];
+    if(symbol.st_shndx == SHN_UNDEF) return 0;
+    switch (symbol.st_shndx)
+    {
+        case SHN_UNDEF:
+            return 0;
+        case SHN_ABS:
+            return symbol.st_value;
+        default:
+            return symbol.st_value;
+    }
+}
+
 ELFFF_STATUS elfff_load(elfff_ctx* ctx)
 {
     #ifdef __x86_64__
@@ -85,7 +101,7 @@ ELFFF_STATUS elfff_load(elfff_ctx* ctx)
     #endif
     
     ctx->header = ((ctx->raw).ptr); 
-    if (!elf_header_validate(ctx))
+    if (!elfff_header_validate(ctx))
         return ELFFF_HEADER_INVALID;
 
     ctx->pheader = ((ctx->raw).ptr + (ctx->header)->e_phoff);
@@ -101,7 +117,7 @@ ELFFF_STATUS elfff_load(elfff_ctx* ctx)
     void* mapped;
     for (size_t i=0; i<ctx->header->e_phnum; i++)
     {
-        elfff_dprintf("parsing pheader %d: type=%d\n", i, ctx->pheader->p_type);
+        elfff_dprintf("pheader %d: type=%d\n", (int)i, (int)(ctx->pheader->p_type));
         switch(ctx->pheader->p_type)
         {
             case PT_LOAD:
@@ -115,11 +131,12 @@ ELFFF_STATUS elfff_load(elfff_ctx* ctx)
                 if (ctx->pheader->p_filesz < ctx->pheader->p_memsz)
                     memset((void*)((uintptr_t)mapped) + ctx->pheader->p_filesz, 0, ctx->pheader->p_memsz - ctx->pheader->p_filesz);
                 ctx->pheader->p_paddr = (uintptr_t)mapped;
+                elfff_dprintf("loaded at %d\n", (int)(ctx->pheader->p_paddr));
                 break;
             case PT_DYNAMIC:
                 break;      
             default:
-                elfff_dprintf("Phdr type=%d not implemented\n", ctx->pheader->p_type);
+                elfff_dprintf("Phdr type=%d not implemented\n", (int)(ctx->pheader->p_type));
         }
         
         ctx->pheader++;
@@ -138,14 +155,19 @@ ELFFF_STATUS elfff_load(elfff_ctx* ctx)
 			// Process each entry in the table
             for(size_t j = 0; j < ctx->sheader->sh_size / ctx->sheader->sh_entsize; j++)
             {
-                rel[j].r_offset = get_actual_address(ctx, rel[j].r_offset);
+                rel[j].r_offset = elfff_get_actual_address(ctx, rel[j].r_offset);
                 if (rel[j].r_offset == 0) return ELFFF_VADDR_INVALID;
+
+                elf_(Addr) symval = elfff_get_symbol_value(ctx, ctx->sheader->sh_link, elf_ab(ELF, _R_SYM)(rel[j].r_info));
                 switch (elf_ab(ELF, _R_TYPE)(rel[j].r_info))
                 {
                     case R_386_32:
-                        *(uintptr_t*)(rel[j].r_offset) = get_actual_address(ctx, *(uintptr_t*)(rel[j].r_offset));
+                        *(uintptr_t*)(rel[j].r_offset) = elfff_get_actual_address(ctx, *(uintptr_t*)(rel[j].r_offset));
                         break;
                     case R_386_PC32:
+                        // * r_offset - symval + actual symbol value
+                        *(uintptr_t*)(rel[j].r_offset)
+                            = elfff_get_actual_address(ctx, symval) - rel[j].r_offset - sizeof(uintptr_t);
                         break;
                     default:
                         ;
@@ -157,7 +179,7 @@ ELFFF_STATUS elfff_load(elfff_ctx* ctx)
         ctx->sheader ++;
     }
 
-    ctx->prog_entry = get_actual_address(ctx, ctx->header->e_entry);
+    ctx->prog_entry = elfff_get_actual_address(ctx, ctx->header->e_entry);
     return ELFFF_SUCCESS;
 }
 

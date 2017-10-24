@@ -18,6 +18,7 @@ global _start
 global hang
 
 _start:
+        xchg    bx, bx
 	jmp .realstart
 
 ;ensures the multiboot header is in the very front of the program

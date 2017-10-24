@@ -6,11 +6,14 @@
 #include "include/memloc.h"
 #include "include/bochsdbg.h"
 
+#include "include/serial.h"
+
 void *mmap(void* addr, size_t len, page_property* usage)
 {
+    dprintf("mmap called with addr=%d len=%d\n", (int)addr, len);
     page_property properties;
     uintreg_t* ct = (uintreg_t*)PREFERRED_MMAP_CTR_PTR;
-    if (addr == 0)
+    if (addr == 0 || 1)
     {
         addr = (void*)(0x30000000 + (*ct)*PAGESIZE);
         *ct = *ct + ((len+PAGESIZE-1)/PAGESIZE);
@@ -25,7 +28,9 @@ void *mmap(void* addr, size_t len, page_property* usage)
         properties.required.busy = true;
         usage = &properties;
     }
-    return MM_mmap(addr, len, usage, GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR));
+    void* result = MM_mmap(addr, len, usage, GetTypedPtrAt(MM_Data_Section_H, LIBMM_DATSEC_PTR));
+    dprintf("mmap returned %d\n", (int)result);
+    return result;
 }
 
 int munmap(void* addr, size_t len)

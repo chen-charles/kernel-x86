@@ -31,6 +31,7 @@ int serial_irq_handler(void* esp, uint8_t int_id)
     {
         serial_printf("Received: %d\r\n", (int)read_serial());
     }
+    
     return 0;
 }
 
@@ -49,6 +50,8 @@ int serial_init()
     // read_serial();  // blocking
     serial_println("Serial started. ");
     
+    *(uintptr_t*)(SERIAL_ENABLED) = SERIAL_ENABLED_MAGIC;
+
     return 0;
 }
 
@@ -69,7 +72,12 @@ int serial_printf(const char* format, ...)
 {
     va_list args;  
     va_start(args, format);
+    serial_vprintf(format, args);
+    va_end(args);
+}
 
+int serial_vprintf(const char* format, va_list args)
+{
     bool inFormat = false;
     bool inEscape = false;
     int indx = 0;
@@ -132,7 +140,6 @@ int serial_printf(const char* format, ...)
         }
     }
 
-    va_end(args);
     return indx;
 
 __printf_format_unrecognized:

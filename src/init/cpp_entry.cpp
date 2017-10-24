@@ -223,7 +223,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         // case 0a switch to the new stack from the current stack
         if ((prevProc == nullptr || prevProc->priv == Privilege::KERNEL) && nextProc->priv == Privilege::KERNEL)
         {
-            bochsdbg_bp_eax(0xA);
+            // bochsdbg_bp_eax(0xA);
             
             // case 1
             if (prevProc != nullptr)
@@ -254,7 +254,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         // case 2 KERNEL->KERNEL_INT->USER
         if (prevProc != nullptr && prevProc->priv == Privilege::KERNEL && nextProc->priv == Privilege::USER)
         {
-            bochsdbg_bp_eax(2);
+            // bochsdbg_bp_eax(2);
 
             prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * (3 + 5); // intr off;   // exact previous stack location
 
@@ -288,7 +288,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         // case 3 USER->KERNEL_INT->KERNEL
         if (prevProc != nullptr && prevProc->priv == Privilege::USER && nextProc->priv == Privilege::KERNEL)
         {
-            bochsdbg_bp_eax(3);
+            // bochsdbg_bp_eax(3);
 
             // prevCtx->esp = prevCtx->esp_stub + sizeof(uint32_t) * (3 + 5);
             prevCtx->esp = *((uint32_t*)esp+3);
@@ -320,7 +320,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         // case 4 USER->KERNEL_INT->USER
         if (prevProc != nullptr && prevProc->priv == Privilege::USER && nextProc->priv == Privilege::USER)
         {
-            bochsdbg_bp_eax(4);
+            // bochsdbg_bp_eax(4);
             prevCtx->esp = *((uint32_t*)esp+3);
             prevCtx->ss = *((uint32_t*)esp+4);
             *((uint32_t*)esp+3) = nextCtx->esp;
@@ -332,7 +332,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
         for (int i=-8-5; i<(nextProc->priv == Privilege::KERNEL ? 3 : 5); i++)  // do not restore ss:esp -> kernel; invalid
             *(((uint32_t*)esp)+i) = *(&(nextCtx->eip)+i);
 
-        bochsdbg_bp_eax(0x200);
+        // bochsdbg_bp_eax(0x200);
     }
 
     return 0;
@@ -480,11 +480,26 @@ void libproc_setup()
         elfff_ctx ctx;
         ctx.raw.ptr = m.ptr;
         ctx.raw.len = m.len;
-        serial_printf("result=%d\n", elfff_load(&ctx));
+        serial_printf("elfff_load result=%d\n", elfff_load(&ctx));
         CreateProcessXRings(ctx.prog_entry, Privilege::USER, 2);
         bochsdbg_bp_eax(ctx.prog_entry);
     }
-
+    m.ptr = GetValAt(uint32_t, INITRD_PTR);
+    m.len = GetValAt(uint32_t, INITRD_SZ);
+    m = fs_loc_buf(m, "./proc2");
+    if (m.ptr == 0)
+        serial_printf("initrd cannot be loaded, init failed. ptr=%d, len=%d\n", m.ptr, m.len);
+    else
+    {
+        serial_printf("proc2 loaded. ptr=%d, len=%d\n", m.ptr, m.len);
+        elfff_ctx ctx;
+        ctx.raw.ptr = m.ptr;
+        ctx.raw.len = m.len;
+        serial_printf("elfff_load result=%d\n", elfff_load(&ctx));
+        CreateProcessXRings(ctx.prog_entry, Privilege::USER, 2);
+        bochsdbg_bp_eax(ctx.prog_entry);
+    }
+    
     // signal scheduler tick is now available
     set_interrupt_handler(ctxSwitch_timerTick_intr, INT_VEC_APIC_TIMER);
 

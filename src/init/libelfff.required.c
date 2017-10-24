@@ -22,7 +22,7 @@ int elfff_dprintf(const char * format, ...)
 {
     va_list args;
     va_start(args, format);
-    int val = serial_printf(format, args);
+    int val = serial_vprintf(format, args);
     va_end(args);
     return val;
 }

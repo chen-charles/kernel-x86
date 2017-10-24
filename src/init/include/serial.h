@@ -31,6 +31,14 @@ int serial_init();
 void serial_print(const char* c_str);
 void serial_println(const char* c_str);
 int serial_printf(const char* format, ...);
+int serial_vprintf(const char* format, va_list args);
+
+// debug interface
+#ifdef DEBUG
+#define dprintf(...) (*(uintptr_t*)(SERIAL_ENABLED) == SERIAL_ENABLED_MAGIC ? serial_printf(__VA_ARGS__) : 0)
+#else
+#define dprintf(...) 0
+#endif
 
 EXTERN_C_END
 

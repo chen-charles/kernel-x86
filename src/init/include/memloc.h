@@ -100,6 +100,8 @@ When kernel sets up the runtime environment for the first time,
 	#define LIBPROC_SCHEDULER_PTR	(SHARED_PTRS+12)
 	#define INITRD_PTR	(SHARED_PTRS+16)
 	#define INITRD_SZ	(SHARED_PTRS+20)
+	#define SERIAL_ENABLED	(SHARED_PTRS+24)
+		#define SERIAL_ENABLED_MAGIC	0xFF0000FF
 
 // Global Tables
 #define pGDTable	0x00000500
