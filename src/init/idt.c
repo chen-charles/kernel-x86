@@ -43,7 +43,10 @@ uintreg_t idt_init()
 	init_idt_desc((GATE*)(*idtaddr) + 0, &int_handler_0, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 1, &int_handler_1, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 2, &int_handler_2, 0, 0x10);
-	init_idt_desc((GATE*)(*idtaddr) + 3, &int_handler_3, 0, 0x10);
+
+	// INT_VEC_BP: allow usermode breakpoints
+	init_idt_desc((GATE*)(*idtaddr) + 3, &int_handler_3, 3, 0x10);
+
 	init_idt_desc((GATE*)(*idtaddr) + 4, &int_handler_4, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 5, &int_handler_5, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 6, &int_handler_6, 0, 0x10);
@@ -223,7 +226,10 @@ uintreg_t idt_init()
 	init_idt_desc((GATE*)(*idtaddr) + 180, &int_handler_180, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 181, &int_handler_181, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 182, &int_handler_182, 0, 0x10);
-	init_idt_desc((GATE*)(*idtaddr) + 183, &int_handler_183, 0, 0x10);
+
+	// INT_VEC_SYSCALL: allow usermode access
+	init_idt_desc((GATE*)(*idtaddr) + 183, &int_handler_183, 3, 0x10);
+
 	init_idt_desc((GATE*)(*idtaddr) + 184, &int_handler_184, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 185, &int_handler_185, 0, 0x10);
 	init_idt_desc((GATE*)(*idtaddr) + 186, &int_handler_186, 0, 0x10);

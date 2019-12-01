@@ -416,8 +416,10 @@ public:
     {
         delete vec_p;
     }
-    
-// private:
+
+    Process* GetCurrentProcess() { return running; }
+
+private:
     Vector<Process*>* vec_p = nullptr;
     Process* prev = nullptr;
     Process* next = nullptr;

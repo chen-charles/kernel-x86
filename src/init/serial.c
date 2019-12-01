@@ -1,6 +1,8 @@
 #include "include/serial.h"
 #include "include/bochsdbg.h"
 
+#include    <klib_ad/x86/spinlock.h>
+
 int serial_received()
 {
     return inb(COM1 + 5) & 1;
@@ -47,8 +49,11 @@ int serial_init()
 
     set_interrupt_handler(serial_irq_handler, INT_VEC_IOAPIC_IRQ4);
 
+    FSpinlock* spinlock = (FSpinlock*)(SERIAL_SPINLOCK);
+    spinlock_create(spinlock);
+
     // read_serial();  // blocking
-    serial_println("Serial started. ");
+    serial_printf("Serial started. \n");
     
     *(uintptr_t*)(SERIAL_ENABLED) = SERIAL_ENABLED_MAGIC;
 
@@ -70,17 +75,22 @@ void serial_println(const char* c_str)
 
 int serial_printf(const char* format, ...)
 {
+    FSpinlock* spinlock = (FSpinlock*)(SERIAL_SPINLOCK);
+    spinlock_acquire(spinlock);
+
     va_list args;  
     va_start(args, format);
     serial_vprintf(format, args);
     va_end(args);
+
+    spinlock_release(spinlock);
 }
 
 int serial_vprintf(const char* format, va_list args)
 {
     bool inFormat = false;
     bool inEscape = false;
-    int indx = 0;
+    uintptr_t indx = 0;
 
     while (*(format+indx))
     {
@@ -143,7 +153,23 @@ int serial_vprintf(const char* format, va_list args)
     return indx;
 
 __printf_format_unrecognized:
-    serial_printf("serial_printf > format unrecognized @ %d\n\tformat=", indx - 1);
+    serial_print("serial_vprintf > format unrecognized @ index=");
+    uintptr_t num = indx - 1;
+
+    uintptr_t rev_num = 0;
+    for (; num; num /= 10)
+    {
+        rev_num *= 10;
+        rev_num += num%10;
+    }
+
+    if (!rev_num)
+        write_serial('0');
+                
+    for (; rev_num; rev_num /= 10)
+        write_serial('0' + rev_num%10);
+
+    serial_println("");
     serial_println(format);
     return indx;
 }

@@ -102,6 +102,8 @@ When kernel sets up the runtime environment for the first time,
 	#define INITRD_SZ	(SHARED_PTRS+20)
 	#define SERIAL_ENABLED	(SHARED_PTRS+24)
 		#define SERIAL_ENABLED_MAGIC	0xFF0000FF
+	#define SERIAL_SPINLOCK	(SHARED_PTRS+28)
+		// see sizeof(FSpinlock)
 
 // Global Tables
 #define pGDTable	0x00000500

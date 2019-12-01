@@ -28,10 +28,14 @@ int serial_irq_handler(void* esp, uint8_t int_id);
 int serial_init();
 
 // utils
+
+// we do not enforce synch. access for serial_print/serial_println/serial_vprintf, use your own synch. mech. for multi-threaded access
 void serial_print(const char* c_str);
 void serial_println(const char* c_str);
-int serial_printf(const char* format, ...);
 int serial_vprintf(const char* format, va_list args);
+
+// synch.: enforced by spinlock
+int serial_printf(const char* format, ...);
 
 // debug interface
 #ifdef DEBUG

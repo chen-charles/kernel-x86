@@ -55,6 +55,9 @@ EXTERN_C
 #define INT_VEC_IOAPIC_IRQ14 INTERNEL_INTERRUPT_BASE + 53
 #define INT_VEC_IOAPIC_IRQ15 INTERNEL_INTERRUPT_BASE + 54
 
+// Usermode Syscall
+#define INT_VEC_SYSCALL INTERNEL_INTERRUPT_BASE + 55
+
 #define APIC_TIMER_FREQUENCY    1000    //number of ticks per second
 
 int interrupt(void* esp, uint32_t int_id);

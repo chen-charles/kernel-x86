@@ -16,10 +16,9 @@
 
 EXTERN_C
 
-#include <klib_sl/c/string.h>
-#include <klib_sl/c/elf.h>
 #include <klib_sl/c/bit_op.h>
-#include <klib_sl/c/cpuid.h>
+#include <klib_sl/c/elf.h>
+#include <klib_sl/c/string.h>
 
 EXTERN_C_END
 

@@ -26,4 +26,16 @@ typedef struct
 }
 memblock;
 
+#ifndef _IN_
+#define _IN_
+#endif
+
+#ifndef _OUT_
+#define _OUT_
+#endif
+
+#ifndef _IN_OUT_
+#define _IN_OUT_
+#endif
+
 #endif

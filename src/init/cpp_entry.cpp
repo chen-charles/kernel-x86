@@ -10,6 +10,7 @@
 #include    <libramfs/ramfs.h>
 #include    <libelfff/libelfff.h>
 #include    "include/kinit_alloc.h"
+#include    "include/check.h"
 
 extern "C" void __cxa_pure_virtual()
 {
@@ -21,6 +22,7 @@ void *operator new[](size_t size) { return calloc(1, size); }
 void operator delete(void *p) { free(p); }
 void operator delete[](void *p) { free(p); }
 
+void syscall_setup();
 void libproc_setup();
 extern "C" int cpp_entry()
 {
@@ -30,6 +32,7 @@ extern "C" int cpp_entry()
     // prepare kernel-init process
     // wait for interrupt jump
     
+    syscall_setup();
     libproc_setup();
 
     return 0;   // should never be reached
@@ -340,6 +343,7 @@ int ctxSwitch_timerTick_intr(void* esp, uint8_t int_id)
 
 extern "C" void* aligned_malloc(size_t size, size_t alignment);
 #include "include/serial.h"
+#include "include/user_syscall.h"
 
 void uinitProcess()
 {
@@ -349,7 +353,9 @@ void uinitProcess()
     __asm__ volatile ("mov fs, ax");
     __asm__ volatile ("mov gs, ax");
     
-    while (1) serial_println("ping from user space!");
+    // gui
+    
+    while (1) usermode_serial_print("ping from user space!\n");
 }
 
 void kinitProcess()
@@ -362,7 +368,7 @@ void kinitProcess()
 
     // pci scan
 
-    while (1) serial_println("ping from kernel space!");
+    while (1) serial_printf("ping from kernel space!\n");
 }
 
 void set_tss_esp(uint32_t esp)
@@ -473,7 +479,7 @@ void libproc_setup()
 
     m = fs_loc_buf(m, "./proc");
     if (m.ptr == 0)
-        serial_printf("initrd cannot be loaded, init failed. ptr=%d, len=%d\n", m.ptr, m.len);
+        serial_printf("initrd ./proc cannot be loaded, init failed. ptr=%d, len=%d\n", m.ptr, m.len);
     else
     {
         serial_printf("proc loaded. ptr=%d, len=%d\n", m.ptr, m.len);
@@ -488,7 +494,7 @@ void libproc_setup()
     m.len = GetValAt(uint32_t, INITRD_SZ);
     m = fs_loc_buf(m, "./proc2");
     if (m.ptr == 0)
-        serial_printf("initrd cannot be loaded, init failed. ptr=%d, len=%d\n", m.ptr, m.len);
+        serial_printf("initrd ./proc2 cannot be loaded, init failed. ptr=%d, len=%d\n", m.ptr, m.len);
     else
     {
         serial_printf("proc2 loaded. ptr=%d, len=%d\n", m.ptr, m.len);
@@ -506,4 +512,67 @@ void libproc_setup()
     // wait for interrupt, end of init.
     sti();
     while (1);
+}
+
+int ctxSwitch_syscall_intr(void* esp, uint8_t int_id)
+{
+    Scheduler* scheduler = GetTypedPtrAt(Scheduler, LIBPROC_SCHEDULER_PTR);
+    Process* cur_proc = scheduler->GetCurrentProcess();
+
+    // TODO: fix context switch when it happens inside a syscall
+    // syscalls should be interruptable for most of its duration
+    // (things like file i/o and other blocking syscalls can take a long time)
+    // sti();
+
+    uintreg_t retval = -1;
+
+    // ecx
+    uintreg_t callno = *(((uintreg_t*)esp) - 7);
+
+    // edx
+    uintreg_t wParam = *(((uintreg_t*)esp) - 8);
+
+    // ebx
+    uintreg_t lParam = *(((uintreg_t*)esp) - 9);
+
+    // serial_printf("received syscall: callno=%d, wParam=%d, lParam=%d", callno, wParam, lParam);
+
+    switch(callno)
+    {
+        case SYSCALL_SERIAL_PRINT:
+            // wParam: const char * (VIRTUAL_ADDRESS)
+            serial_print((const char*)wParam);
+            retval = 0;
+            break;
+        default:
+            checkNoEntry();
+    }
+
+    // assign return value in eax
+    *(((uintreg_t*)esp) - 1) = retval;
+
+    // not interruptable when we are returning from interrupts
+    cli();
+
+    return 0;
+}
+
+int general_protection_intr(void* esp, uint8_t int_id)
+{
+    checkf(false, "oops, we don't know how to #GP yet ...");
+    return 1;
+}
+
+int page_fault_intr(void* esp, uint8_t int_id)
+{
+    checkf(false, "oops, we don't know how to #PF yet ...");
+    return 1;
+}
+
+void syscall_setup()
+{
+    set_interrupt_handler(ctxSwitch_syscall_intr, INT_VEC_SYSCALL);
+
+    set_interrupt_handler(general_protection_intr, INT_VEC_GP);
+    set_interrupt_handler(page_fault_intr, INT_VEC_PF);
 }

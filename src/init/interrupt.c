@@ -19,7 +19,7 @@ int interrupt(void* esp, uint32_t int_id)
     if (int_id == INT_VEC_APIC_SPUR)
         return 0;
 
-    /* you could install custom handlers for the following intr. */
+    /* you could install additional custom handlers for INT_VEC_APIC_TIMER. */
     if (int_id == INT_VEC_APIC_TIMER)
         TickSystemInternalTime();
     else if (int_id == INT_VEC_IOAPIC_IRQ1)

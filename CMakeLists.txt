@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.0)
 project(kernel-x86)
 
 set(CMAKE_VERBOSE_MAKEFILE off)
-SET (CMAKE_C_FLAGS "-D DEBUG -std=c11 -O0 -masm=intel -m32 -ffreestanding -fno-exceptions -nostdlib -fno-stack-protector")
+SET (CMAKE_C_FLAGS "-D DEBUG -D DO_CHECK -g -std=c11 -O0 -masm=intel -m32 -ffreestanding -fno-exceptions -nostdlib -fno-stack-protector")
 set(CMAKE_C_FLAGS_DEBUG "-g3")
 set(CMAKE_C_FLAGS_RELEASE "-O2")
-SET (CMAKE_CXX_FLAGS "-D DEBUG -std=c++11 -O0 -masm=intel -m32 -ffreestanding -fno-rtti -fno-exceptions -nostdlib -fno-stack-protector")
+SET (CMAKE_CXX_FLAGS "-D DEBUG -D DO_CHECK -g -std=c++11 -O0 -masm=intel -m32 -ffreestanding -fno-rtti -fno-exceptions -nostdlib -fno-stack-protector")
 set(CMAKE_CXX_FLAGS_DEBUG "-g3")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
